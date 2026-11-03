@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Contributor workspace</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+@keyframes wslideup { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.wslide { animation: wslideup .45s ease; }
+@media (prefers-reduced-motion: reduce) { .wslide { animation: none; } }
+.world-nav { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.world-nav button { cursor: pointer; border: 1px solid var(--line); background: #fff; border-radius: 6px; font: inherit; font-size: 13px; padding: 2px 10px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor" class="active">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1 id="hello">Open briefs for you.</h1>
+        <p>Coverage requests matched to your verified roles. Apply and the station reviews your profile.</p></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><b id="stOpen">–</b><span>open briefs</span></div>
+        <div class="stat"><b id="stMine">–</b><span>my applications</span></div>
+        <div class="stat"><b id="stRoles">–</b><span>verified roles</span></div>
+      </div>
+      <div class="panel" id="trendPanel" hidden>
+        <h2>Trending now</h2>
+        <p class="hint">Breaking world headlines to guide what you cover — or <a href="/pitches">pitch it cold →</a></p>
+        <div id="worldBox"></div>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="list-head"><h2 id="briefs">Available briefs</h2></div>
+      <div id="list"></div>
+      <div class="page-foot"><span>Briefs are visible to matching verified professionals, not the public marketplace.</span><span class="clocks" id="rolesLine"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+let briefs = [], who = null, tab = "match";
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  who = u;
+  topUser(u); notifBell();
+  tickClock();
+  document.getElementById("hello").textContent = "Open briefs for " + u.name.split(" ")[0] + ".";
+  document.getElementById("rolesLine").textContent = (u.roles || []).join(" · ") || "No verified roles yet";
+  document.getElementById("stRoles").textContent = (u.roles || []).length;
+  const res = await fetch("/api/requests");
+  briefs = res.ok ? await res.json().catch(() => []) : [];
+  if (!Array.isArray(briefs)) briefs = [];
+  const mine = briefs.filter(b => b.applied);
+  const matched = briefs.filter(b => b.match && !b.applied);
+  document.getElementById("stOpen").textContent = matched.length;
+  document.getElementById("stMine").textContent = mine.length;
+  renderTabs();
+  render();
+  loadWorld();
+}
+let worldTries = 0, worldItems = [], worldIdx = 0, worldTimer = null, worldSig = "";
+function renderWorld(){
+  const stage = document.getElementById("worldStage");
+  if (!stage || !worldItems.length) return;
+  const i = worldItems[((worldIdx % worldItems.length) + worldItems.length) % worldItems.length];
+  const title = esc(i.title || "");
+  const link = (i.link || "").indexOf("http") === 0
+    ? "<a href='" + esc(i.link) + "' target='_blank' rel='noopener'>" + title + "</a>"
+    : title;
+  stage.innerHTML = "<div style='font-size:13px;font-weight:700'>" + link + " <span class='micro'>· " + esc(i.source || "") + "</span></div>" +
+    (i.summary ? "<p style='font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 0'>" + esc(i.summary) + "</p>" : "");
+  stage.classList.remove("wslide");
+  void stage.offsetWidth;
+  stage.classList.add("wslide");
+  document.getElementById("worldCount").textContent =
+    ((((worldIdx % worldItems.length) + worldItems.length) % worldItems.length) + 1) + " / " + worldItems.length;
+}
+function worldStep(d){
+  worldIdx += d;
+  renderWorld();
+  worldAuto();
+}
+function worldAuto(){
+  if (worldTimer) clearInterval(worldTimer);
+  worldTimer = null;
+  if (worldItems.length < 2) return;
+  worldTimer = setInterval(() => { worldIdx += 1; renderWorld(); }, 6000);
+}
+async function loadWorld(){
+  const box = document.getElementById("worldBox");
+  document.getElementById("trendPanel").hidden = false;
+  let ok = false, body = {};
+  try {
+    const res = await fetch("/api/worldnews");
+    ok = res.ok;
+    body = res.ok ? await res.json().catch(() => ({})) : {};
+  } catch (e) { ok = false; }
+  const items = Array.isArray(body.items) ? body.items : [];
+  if (body.summary || items.length) {
+    const sig = items.slice(0, 6).map(i => i.title || "").join("|") + "|" + (body.summary || "");
+    if (sig === worldSig && document.getElementById("worldStage")) {
+      if (body.status === "pending" && worldTries < 12) {
+        worldTries += 1;
+        setTimeout(loadWorld, 5000);
+      }
+      return;
+    }
+    worldSig = sig;
+    let html = "<div class='micro'>World briefing</div>";
+    if (body.summary) html += "<p style='font-size:13px;color:var(--muted);line-height:1.6'>" + esc(body.summary) + "</p>";
+    if (items.length) {
+      html += "<div id='worldStage'></div>" +
+        "<div class='world-nav'><button id='worldPrev' title='Previous story'>←</button>" +
+        "<span class='micro' id='worldCount'></span>" +
+        "<button id='worldNext' title='Next story'>→</button></div>";
+    }
+    if (body.updated) html += "<p class='micro' style='margin-top:8px'>Updated " + esc(body.updated.slice(0, 16).replace("T", " ")) + "</p>";
+    box.innerHTML = html;
+    if (items.length) {
+      worldItems = items.slice(0, 6);
+      worldIdx = 0;
+      renderWorld();
+      worldAuto();
+      const stage = document.getElementById("worldStage");
+      stage.onmouseenter = () => { if (worldTimer) clearInterval(worldTimer); worldTimer = null; };
+      stage.onmouseleave = worldAuto;
+      document.getElementById("worldPrev").onclick = () => { worldStep(-1); };
+      document.getElementById("worldNext").onclick = () => { worldStep(1); };
+    }
+  } else if (!ok) {
+    box.innerHTML = "<p class='fine'>Couldn't reach the briefing service. <a href='#' id='worldRetry'>Retry</a></p>";
+    document.getElementById("worldRetry").onclick = e => { e.preventDefault(); worldTries = 0; loadWorld(); };
+    return;
+  } else if (body.status === "error") {
+    box.innerHTML = "<p class='fine'>Headlines unavailable (" + esc(body.error || "fetch failed") + "). <a href='#' id='worldRetry'>Retry</a></p>";
+    document.getElementById("worldRetry").onclick = e => { e.preventDefault(); worldTries = 0; loadWorld(); };
+    return;
+  } else {
+    box.innerHTML = "<p class='fine'>Gathering headlines…</p>";
+  }
+  if (body.status === "pending" && worldTries < 12) {
+    worldTries += 1;
+    setTimeout(loadWorld, 5000);
+  }
+}
+function renderTabs(){
+  const defs = [["match", "Matched to my roles", briefs.filter(b => b.match && !b.applied).length],
+    ["all", "All open briefs", briefs.filter(b => !b.applied).length],
+    ["mine", "My applications", briefs.filter(b => b.applied).length]];
+  const el = document.getElementById("tabs");
+  el.innerHTML = "";
+  defs.forEach(([k, label, n]) => {
+    const b = document.createElement("button");
+    b.textContent = label + " " + n;
+    if (k === tab) b.classList.add("active");
+    b.onclick = () => { tab = k; renderTabs(); render(); };
+    el.appendChild(b);
+  });
+}
+function visible(){
+  if (tab === "mine") return briefs.filter(b => b.applied);
+  if (tab === "all") return briefs.filter(b => !b.applied);
+  return briefs.filter(b => b.match && !b.applied);
+}
+function render(){
+  const el = document.getElementById("list");
+  el.innerHTML = "";
+  const list = visible();
+  if (!list.length) {
+    el.innerHTML = "<div class='brief'><h3>" + (tab === "mine" ? "No applications yet." : "No open briefs right now.") + "</h3><p>" +
+      (tab === "mine" ? "Briefs you apply to land here." : "When a station commissions coverage matching your roles, it lands here.") + "</p></div>";
+    return;
+  }
+  list.forEach(function (b) {
+    const applied = !!b.applied;
+    const d = document.createElement("div");
+    d.className = "brief";
+    d.innerHTML = "<div class='micro'>" + esc(b.type || "Coverage") + " · " + esc(b.id) + (b.match && !applied ? " · <b style='color:var(--brand-dark)'>MATCHES YOUR ROLES</b>" : "") + "</div><h3>" + esc(b.title) + "</h3><p>" + esc(b.brief || "") + "</p>" +
+      "<div class='brief-meta'><span>" + icon("pin", 12) + " " + esc(b.location || "") + "</span><span>" + icon("calendar", 12) + " Due " + esc(b.due || "") + "</span><span>" + icon("dollar", 12) + " " + esc(b.budget || "") + "</span><span>" + icon("users", 12) + " " + esc((b.roles || []).join(", ")) + "</span></div>" +
+      (applied
+        ? "<button class='btn btn-ghost' style='width:auto' disabled>" + icon("check", 15) + " Applied</button>"
+        : "<div class='field' style='margin:10px 0'><label>Pitch to the station (optional)</label><input placeholder='Why you fit this brief…' class='note'></div><button class='btn btn-primary' style='width:auto'>Apply to this brief</button>");
+    if (!applied) d.querySelector("button").onclick = async function () {
+      const note = d.querySelector(".note").value;
+      const r = await fetch("/api/requests/" + b.id + "/apply", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ note: note }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't apply to that brief."); return; }
+      load();
+    };
+    el.appendChild(d);
+  });
+}
+load();
+</script>
+</body>
+</html>

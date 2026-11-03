@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Pitch stations</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches" class="active">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>Pitch work to stations.</h1>
+        <p>Propose a story directly. Accepted pitches become assignments.</p></div>
+      </div>
+      <div class="panel" id="pitchPanel">
+        <h2>New pitch</h2>
+        <div class="two">
+          <div class="field"><label>Station *</label><select id="ptStation"></select></div>
+          <div class="field"><label>Idea title *</label><input id="ptTitle" placeholder="e.g. Night shift at the fish market"></div>
+          <div class="field"><label>Budget (USD)</label><input id="ptBudget" placeholder="$500 · Fixed fee"></div>
+          <div class="field"><label>Sample file (optional)</label><select id="ptAsset"><option value="">None</option></select></div>
+        </div>
+        <div class="field" style="margin-top:12px"><label>The pitch *</label><textarea id="ptBrief" placeholder="Angle, access, deliverables, timeline…"></textarea></div>
+        <p class="err" id="ptErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-primary" style="width:auto" id="ptSend">Send pitch</button></div>
+      </div>
+      <div class="panel" style="margin-top:18px">
+        <h2>Sent pitches</h2>
+        <div id="pitchList"><p class="hint">No pitches sent yet.</p></div>
+      </div>
+      <div class="page-foot"><span>Accepted pitches land on your assignments page.</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+async function loadPitches(){
+  const res = await fetch("/api/pitches");
+  const list = res.ok ? await res.json().catch(() => []) : [];
+  const el = document.getElementById("pitchList");
+  if (!Array.isArray(list)) { el.innerHTML = ""; return; }
+  el.innerHTML = "";
+  if (!list.length) { el.innerHTML = "<p class='fine'>No pitches sent yet.</p>"; return; }
+  list.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "note";
+    d.innerHTML = "<b>" + esc(p.title) + "</b> <span class='micro'>→ " + esc(p.stationName || "") + " · " + esc(p.status.toUpperCase()) + "</span><br><span class='fine'>" + esc((p.brief || "").slice(0, 140)) + "</span>";
+    el.appendChild(d);
+  });
+}
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  const asRes = await fetch("/api/assets");
+  const assets = asRes.ok ? await asRes.json().catch(() => []) : [];
+  const dirRes = await fetch("/api/directory");
+  const stations = dirRes.ok ? await dirRes.json().catch(() => []) : [];
+  const sel = document.getElementById("ptStation");
+  sel.innerHTML = "";
+  (Array.isArray(stations) ? stations : []).forEach(s => {
+    const o = document.createElement("option");
+    o.value = s.email; o.textContent = s.org + " · " + s.email;
+    sel.appendChild(o);
+  });
+  const asel = document.getElementById("ptAsset");
+  assets.filter(a => a.complete).forEach(a => {
+    const o = document.createElement("option");
+    o.value = a.id; o.textContent = a.name;
+    asel.appendChild(o);
+  });
+  loadPitches();
+  document.getElementById("ptSend").onclick = async () => {
+    const err = document.getElementById("ptErr");
+    err.textContent = "";
+    const body = { station: document.getElementById("ptStation").value,
+      title: document.getElementById("ptTitle").value,
+      brief: document.getElementById("ptBrief").value,
+      budget: document.getElementById("ptBudget").value,
+      assetId: document.getElementById("ptAsset").value };
+    const r = await fetch("/api/pitches", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const saved = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = saved.error || "Couldn't send that pitch."; return; }
+    document.getElementById("ptTitle").value = "";
+    document.getElementById("ptBrief").value = "";
+    document.getElementById("ptBudget").value = "";
+    loadPitches();
+  };
+}
+load();
+</script>
+</body>
+</html>

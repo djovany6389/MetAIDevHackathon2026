@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Bookings &amp; licensed library</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom/Entertainment</div>
+      <a href="/discover">◉ Discover</a>
+      <a href="/bookings" class="active">(()) My bookings</a>
+      <a href="/expenses">$ Expense report</a>
+      <a href="/requests">▤ Coverage requests</a>
+      <a href="/request">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="crumb">← <a href="/discover">Discover</a> / Return to marketplace</div>
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Station workspace</div>
+        <h1>Bookings &amp; licensed library</h1>
+        <p>Keep every live connection, delivery and usage right in view.</p></div>
+        <a class="btn btn-primary" href="/discover"><i data-ic="compass" data-size="15"></i> Browse marketplace</a>
+      </div>
+      <div class="stat-grid" id="stats"></div>
+      <div class="tabs" id="tabs"></div>
+      <div class="toolbar" style="grid-template-columns:1fr auto auto">
+        <div class="search"><i data-ic="search" data-size="16"></i><input id="q" placeholder="Search title, creator or invoice"></div>
+        <select class="select-btn" id="statusFilter"><option value="">All statuses</option><option value="live">Live now</option><option value="upcoming">Upcoming</option><option value="licensed">Licensed</option><option value="cancelled">Cancelled</option></select>
+        <input class="select-btn" type="date" id="dateFilter" title="Filter by date">
+      </div>
+      <div class="bookings-grid">
+        <div id="rows"></div>
+        <div id="detail"></div>
+      </div>
+      <div class="page-foot"><span>© 2026 Relay Network · All amounts in USD</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+const PILLS = { upcoming: ["p-up", "UPCOMING"], licensed: ["p-lic", "LICENSED"], cancelled: ["p-can", "CANCELLED"] };
+let bookings = [], catalog = [], tab = "all", selected = null;
+const byId = id => catalog.find(c => c.id === id) || {};
+const effStatus = b => (b.liveNow && b.status !== "cancelled") ? "live" : b.status;
+const pillFor = b => effStatus(b) === "live" ? ["p-live", "LIVE NOW"] : (PILLS[b.status] || PILLS.upcoming);
+
+async function load() {
+  const u = await guard("station");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  bookings = await (await fetch("/api/bookings")).json();
+  catalog = await (await fetch("/api/content")).json();
+  if (!selected || !bookings.some(b => b.id === selected)) selected = bookings.length ? bookings[0].id : null;
+  renderTabs(); renderStats(); render();
+  document.getElementById("q").oninput = render;
+  document.getElementById("statusFilter").onchange = render;
+  document.getElementById("dateFilter").onchange = render;
+}
+function renderStats() {
+  const live = bookings.filter(b => effStatus(b) === "live").length;
+  const up = bookings.filter(b => b.status === "upcoming").length;
+  const lic = bookings.filter(b => b.status === "licensed").length;
+  const next = bookings.filter(b => b.status === "upcoming").sort((a, b) => (a.date + a.from).localeCompare(b.date + b.from))[0];
+  document.getElementById("stats").innerHTML =
+    "<div class='stat'><span>Live connections</span><b>" + live + " on air</b></div>" +
+    "<div class='stat'><span>Upcoming reservations</span><b>" + up + " booked</b><span>" + (next ? "Next: " + esc(next.date + " " + next.from + " EST") : "Nothing scheduled") + "</span></div>" +
+    "<div class='stat'><span>Licensed content</span><b>" + lic + " assets</b><span>TV, podcast &amp; packages</span></div>";
+}
+function renderTabs() {
+  const defs = [["all", "All content", bookings.length],
+    ["live", "Live & upcoming", bookings.filter(b => ["upcoming"].includes(b.status) || effStatus(b) === "live").length],
+    ["licensed", "Licensed library", bookings.filter(b => b.status === "licensed").length],
+    ["invoices", "Invoices", bookings.filter(b => b.invoice).length]];
+  const el = document.getElementById("tabs");
+  el.innerHTML = "";
+  defs.forEach(([k, label, n]) => {
+    const b = document.createElement("button");
+    b.textContent = label + " " + n;
+    if (k === tab) b.classList.add("active");
+    b.onclick = () => { tab = k; renderTabs(); render(); };
+    el.appendChild(b);
+  });
+}
+function match(b) {
+  if (tab === "live" && !(b.status === "upcoming" || effStatus(b) === "live")) return false;
+  if (tab === "licensed" && b.status !== "licensed") return false;
+  if (tab === "invoices" && !b.invoice) return false;
+  const f = document.getElementById("statusFilter").value;
+  if (f && effStatus(b) !== f) return false;
+  const df = document.getElementById("dateFilter").value;
+  if (df && b.date !== df) return false;
+  const q = document.getElementById("q").value.toLowerCase();
+  if (!q) return true;
+  const c = byId(b.contentId);
+  return ((b.id || "") + " " + (c.title || "") + " " + (c.owner || "") + " " + (b.invoice || "")).toLowerCase().includes(q);
+}
+function window_(b) {
+  if (b.from && b.until) return b.date + " · " + b.from + "–" + b.until + " EST";
+  return b.date || "";
+}
+function render() {
+  const rows = document.getElementById("rows");
+  rows.innerHTML = "";
+  const list = bookings.filter(match);
+  if (!bookings.length) {
+    rows.innerHTML = "<div class='panel'><h2>No bookings yet.</h2><p class='hint'>Book a live feed or license finished content from the marketplace.</p><a class='btn btn-primary' style='width:auto' href='/discover'>" + icon("compass", 15) + " Browse marketplace</a></div>";
+    document.getElementById("detail").innerHTML = "";
+    return;
+  }
+  if (!list.length) { rows.innerHTML = "<div class='panel'><p class='hint' style='margin:0'>Nothing matches this filter.</p></div>"; renderDetail(); return; }
+  if (!list.some(b => b.id === selected)) selected = list[0].id;
+  if (tab === "invoices") {
+    list.forEach(b => {
+      const c = byId(b.contentId);
+      const d = document.createElement("div");
+      d.className = "brow" + (b.id === selected ? " selected" : "");
+      d.innerHTML = "<div class='brow-main'><div class='micro'>" + esc(b.invoice || "Invoice pending") + "</div><h3>" + esc(c.title || b.contentId) + "</h3><div class='brow-sub'>" + esc((c.owner || "") + " · " + window_(b)) + "</div></div>" +
+        "<div class='brow-side'><span class='pill p-lic'>" + (b.status === "cancelled" ? "VOID" : "PAID") + "</span><b class='brow-total'>" + esc(b.totalText || "") + "</b></div>";
+      d.onclick = () => { selected = b.id; render(); };
+      rows.appendChild(d);
+    });
+  } else {
+    list.forEach(b => {
+      const c = byId(b.contentId);
+      const pill = pillFor(b);
+      const d = document.createElement("div");
+      d.className = "brow" + (b.id === selected ? " selected" : "");
+      d.innerHTML = "<img class='brow-thumb' src='" + esc(c.thumb || "") + "' alt=''><div class='brow-main'><div class='micro' style='color:var(--brand-dark)'>" + esc(c.kindLabel || "") + "</div><h3>" + esc(c.title || b.contentId) + "</h3>" +
+        "<div class='brow-sub'>" + esc((c.owner || "") + " · " + window_(b)) + "</div>" +
+        "<div class='brow-rights'>" + esc(b.rights || c.license || "") + "</div></div>" +
+        "<div class='brow-side'><span class='pill " + pill[0] + "'>" + pill[1] + "</span><b class='brow-total'>" + esc(b.totalText || "") + "</b><span class='inv'>" + esc(b.invoice || "Invoice pending") + "</span></div>";
+      d.onclick = () => { selected = b.id; render(); };
+      rows.appendChild(d);
+    });
+  }
+  const p = document.createElement("p");
+  p.className = "fine";
+  p.textContent = "Showing " + list.length + " of " + bookings.length + " records · Rights start and end in EST unless noted.";
+  rows.appendChild(p);
+  renderDetail();
+}
+function renderDetail() {
+  const el = document.getElementById("detail");
+  const b = bookings.find(x => x.id === selected);
+  if (!b) { el.innerHTML = ""; return; }
+  const c = byId(b.contentId);
+  const live = effStatus(b) === "live";
+  const cancelled = b.status === "cancelled";
+  el.innerHTML = "<div class='panel detail'><h2>Selected booking</h2>" +
+    "<div class='detail-top'><span class='tag-up'>" + pillFor(b)[1] + "</span><span class='micro'>" + esc(b.id.replace("bk_", "BK-")) + "</span></div>" +
+    "<h3>" + esc((c.title || "").split("·")[0]) + "</h3><p class='fine'>" + esc((c.owner || "") + " · " + (c.kindLabel || "") + " · " + (c.id || "").toUpperCase()) + "</p>" +
+    "<div class='preview'><div class='preview-bar'><span>" + esc((c.id || "").toUpperCase() + " / PREVIEW") + "</span><span>" + esc(estNowStamp()) + "</span></div>" +
+    "<div class='preview-img'><img src='" + esc(c.thumb || "") + "' alt=''><div class='watermark'>NOT FOR BROADCAST</div></div>" +
+    "<div class='preview-status'><span>" + esc((c.tech || "").split("·")[0]) + "</span></div></div>" +
+    "<div class='kv'><span>License window</span><b>" + esc(window_(b)) + "</b></div>" +
+    "<div class='kv'><span>Total · " + (cancelled ? "Void" : "Paid") + "</span><b>" + esc(b.totalText || "") + "</b></div>" +
+    "<h4>Rights &amp; access</h4><p class='fine'>" + esc(b.rights || c.license || "") + (c.restrictions ? ". " + esc(c.restrictions) + "." : "") + "</p>" +
+    (live ? "" : "<div class='warn'>" + icon("alert", 14) + " Endpoints are not available yet. SRT primary and HLS backup release five minutes before your window.</div>") +
+    "<div class='endpoints' id='eps' hidden></div>" +
+    "<button class='btn btn-ghost' style='width:100%;margin:10px 0' id='connBtn'>" + (live ? "Open connection · live now" : "Open connection" + (b.from ? " · " + esc(b.from) + " EST" : "")) + "</button>" +
+    "<button class='btn btn-ghost' style='width:100%' id='invBtn'>" + icon("download", 15) + " Download invoice · " + esc(b.invoice || "pending") + "</button>" +
+    ((c.asset && b.status === "licensed") ? "<a class='btn btn-primary' style='width:100%;text-align:center;margin-top:8px' href='/assets/" + esc(c.asset) + "' download>" + icon("download", 15) + " Download " + esc(c.assetName || "deliverable") + "</a>" : "") +
+    "<p><a href='#' id='licLink' style='font-size:13px;font-weight:700'>View license agreement " + icon("external", 12) + "</a></p>" +
+    "<div id='licBox' hidden style='font-size:13px;color:var(--muted);line-height:1.6;border-top:1px solid var(--line);padding-top:10px'></div>" +
+    "<p class='fine'>Free cancellation until five minutes before the window. No automatic renewal.</p>" +
+    (cancelled ? "<p class='fine'><b>This booking is cancelled.</b></p>" : "<p><a href='#' id='cancelBtn' style='font-size:13px;font-weight:700'>Cancel booking →</a></p>") + "</div>";
+  document.getElementById("connBtn").onclick = async () => {
+    const r = await fetch("/api/bookings/" + b.id + "/endpoints");
+    const box = document.getElementById("eps");
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      box.hidden = false;
+      box.textContent = e.error || "Connection not available for this booking.";
+      return;
+    }
+    const eps = await r.json();
+    box.hidden = false;
+    box.innerHTML = "SRT&nbsp;&nbsp;" + esc(eps.srt) + "<br>HLS&nbsp;&nbsp;" + esc(eps.hls) + "<br><span class='micro'>Valid until " + esc(eps.validUntil) + "</span>";
+  };
+  document.getElementById("invBtn").onclick = () => {
+    const a = document.createElement("a");
+    a.href = "/api/bookings/" + b.id + "/invoice";
+    a.download = (b.invoice || b.id) + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  document.getElementById("licLink").onclick = (e) => {
+    e.preventDefault();
+    const box = document.getElementById("licBox");
+    box.hidden = !box.hidden;
+    box.innerHTML = "<b>License</b><br>" + esc(c.license || b.rights || "Editorial use within the booked window.") + "<br><br><b>Permitted</b><br>" + esc(c.permitted || "Linear TV + simultaneous web broadcast") + "<br><br><b>Restrictions</b><br>" + esc(c.restrictions || "No resale or advertising use") + "<br><br><span class='micro'>Booking " + esc(b.id) + " · Invoice " + esc(b.invoice || "pending") + "</span>";
+  };
+  const cb = document.getElementById("cancelBtn");
+  if (cb) cb.onclick = async (e) => {
+    e.preventDefault();
+    if (!confirm("Cancel this booking? The license window will be released.")) return;
+    const r = await fetch("/api/bookings/" + b.id + "/cancel", { method: "POST" });
+    if (!r.ok) { const err = await r.json().catch(() => ({})); alert(err.error || "Couldn't cancel that booking."); return; }
+    load();
+  };
+}
+load();
+</script>
+</body>
+</html>

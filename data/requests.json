@@ -1,0 +1,246 @@
+[
+ {
+  "id": "rq_f0a24e3a",
+  "station": "station@metroline.tv",
+  "stationName": "Metroline TV",
+  "title": "test",
+  "brief": "jbn,",
+  "type": "Live event",
+  "deliverable": "",
+  "language": "English",
+  "assets": [
+   "Clean version"
+  ],
+  "roles": [
+   "Producer"
+  ],
+  "arrangement": "Hybrid",
+  "location": "olo",
+  "starts": "2026-10-29",
+  "due": "2026-10-31",
+  "budget": "29",
+  "exclusivity": "Exclusive 7 days",
+  "rights": [
+   "Linear TV",
+   "Simultaneous web",
+   "VOD"
+  ],
+  "attachments": [],
+  "status": "completed",
+  "applications": [
+   {
+    "email": "maya@mayachen.media",
+    "name": "Maya Chen",
+    "roles": [
+     "Reporter",
+     "Editor",
+     "Camera operator"
+    ],
+    "note": "",
+    "at": "2026-10-30T02:37:57.366332+00:00"
+   }
+  ],
+  "created": "2026-10-30T02:35:07.471012+00:00",
+  "assignee": {
+   "email": "maya@mayachen.media",
+   "name": "Maya Chen"
+  },
+  "assignedAt": "2026-10-30T02:43:27.184429+00:00",
+  "deliveries": [
+   {
+    "v": 1,
+    "assetId": "as_8554d64a",
+    "assetName": "BigBuckBunny_320x180.mp4",
+    "assetMime": "video/mp4",
+    "note": "",
+    "at": "2026-10-30T18:46:08.548944+00:00"
+   },
+   {
+    "v": 2,
+    "assetId": "as_a2dbc53a",
+    "assetName": "test.mp4",
+    "assetMime": "video/mp4",
+    "note": "check this",
+    "at": "2026-10-31T01:42:22.493731+00:00"
+   },
+   {
+    "v": 3,
+    "assetId": "as_8b524481",
+    "assetName": "gemini_generated_video_4c659b8c.mp4",
+    "assetMime": "video/mp4",
+    "note": "cc included",
+    "at": "2026-10-31T01:56:48.465700+00:00"
+   }
+  ],
+  "delivery": {
+   "v": 3,
+   "assetId": "as_8b524481",
+   "assetName": "gemini_generated_video_4c659b8c.mp4",
+   "assetMime": "video/mp4",
+   "note": "cc included",
+   "at": "2026-10-31T01:56:48.465700+00:00"
+  },
+  "feedback": "no caption",
+  "feedbackAt": "2026-10-31T01:56:25.580553+00:00",
+  "completedAt": "2026-10-31T03:19:57.373175+00:00",
+  "notes": [
+   {
+    "id": "nt_0279bfcf",
+    "author": "Maya Chen",
+    "role": "contributor",
+    "text": "all good",
+    "tc": "00:23",
+    "at": "2026-10-31T17:17:12.551972+00:00",
+    "resolved": true
+   }
+  ]
+ },
+ {
+  "id": "rq_b6eb634e",
+  "station": "station@metroline.tv",
+  "stationName": "Metroline TV",
+  "title": "test",
+  "brief": "jbn,",
+  "type": "Live event",
+  "deliverable": "",
+  "language": "English",
+  "assets": [
+   "Clean version"
+  ],
+  "roles": [
+   "Producer"
+  ],
+  "arrangement": "Hybrid",
+  "location": "Margate, FL",
+  "starts": "2026-10-29",
+  "due": "2026-10-31",
+  "budget": "$29",
+  "exclusivity": "Exclusive 7 days",
+  "rights": [
+   "Linear TV",
+   "Simultaneous web",
+   "VOD"
+  ],
+  "attachments": [],
+  "status": "assigned",
+  "applications": [
+   {
+    "email": "productiondjovany@gmail.com",
+    "name": "Diovany Deus",
+    "roles": [
+     "Producer"
+    ],
+    "note": "well experienced for this",
+    "at": "2026-10-30T20:54:24.097743+00:00"
+   }
+  ],
+  "created": "2026-10-30T02:35:55.119860+00:00",
+  "assignee": {
+   "email": "productiondjovany@gmail.com",
+   "name": "Diovany Deus"
+  },
+  "assignedAt": "2026-10-30T20:55:35.261339+00:00"
+ },
+ {
+  "id": "rq_d8b0d05f",
+  "station": "station@metroline.tv",
+  "stationName": "Metroline TV",
+  "title": "test",
+  "brief": "jbn,",
+  "type": "Live event",
+  "deliverable": "",
+  "language": "English",
+  "assets": [
+   "Clean version"
+  ],
+  "roles": [
+   "Producer"
+  ],
+  "arrangement": "Hybrid",
+  "location": "olo",
+  "starts": "2026-10-29",
+  "due": "2026-10-31",
+  "budget": "$29",
+  "exclusivity": "Exclusive 7 days",
+  "rights": [
+   "Linear TV",
+   "Simultaneous web",
+   "VOD"
+  ],
+  "attachments": [],
+  "status": "assigned",
+  "applications": [
+   {
+    "email": "maya@mayachen.media",
+    "name": "Maya Chen",
+    "roles": [
+     "Reporter",
+     "Editor",
+     "Camera operator"
+    ],
+    "note": "good",
+    "at": "2026-10-30T02:38:06.710426+00:00"
+   }
+  ],
+  "created": "2026-10-30T02:36:03.319660+00:00",
+  "assignee": {
+   "email": "productiondjovany@gmail.com",
+   "name": "Diovany Deus"
+  },
+  "assignedAt": "2026-10-30T17:43:39.777863+00:00",
+  "notes": [
+   {
+    "id": "nt_3bbe754a",
+    "author": "Metroline TV",
+    "role": "station",
+    "text": "fix the typos",
+    "tc": "01:09",
+    "at": "2026-10-30T18:42:08.184520+00:00",
+    "resolved": true
+   }
+  ]
+ },
+ {
+  "id": "rq_8a362d62",
+  "station": "station@metroline.tv",
+  "stationName": "Metroline TV",
+  "title": "test",
+  "brief": "jbn,",
+  "type": "Live event",
+  "deliverable": "",
+  "language": "English",
+  "assets": [
+   "Clean version"
+  ],
+  "roles": [
+   "Producer"
+  ],
+  "arrangement": "Hybrid",
+  "location": "Orlando, FL",
+  "starts": "2026-10-30",
+  "due": "2026-10-31",
+  "budget": "$29",
+  "exclusivity": "Exclusive 7 days",
+  "rights": [
+   "Linear TV",
+   "Simultaneous web",
+   "VOD"
+  ],
+  "attachments": [],
+  "status": "open",
+  "applications": [
+   {
+    "email": "maya@mayachen.media",
+    "name": "Maya Chen",
+    "roles": [
+     "Reporter",
+     "Editor",
+     "Camera operator"
+    ],
+    "note": "experienced",
+    "at": "2026-10-30T02:37:42.777020+00:00"
+   }
+  ],
+  "created": "2026-10-30T02:36:07.414703+00:00"
+ }
+]

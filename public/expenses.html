@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Expense report</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.exp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; align-items: start; }
+@media (max-width: 1080px) { .exp-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom/Entertainment</div>
+      <a href="/discover">◉ Discover</a>
+      <a href="/bookings">((·)) My bookings</a>
+      <a href="/expenses" class="active">$ Expense report</a>
+      <a href="/requests">▤ Coverage requests</a>
+      <a href="/request">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="crumb">← <a href="/bookings">My bookings</a> / Expense report</div>
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Station workspace</div>
+        <h1>Expense report</h1>
+        <p>Paid bookings only · cancelled bookings excluded · All amounts in USD.</p></div>
+        <a class="btn btn-primary" href="#" id="expExport"><i data-ic="download" data-size="15"></i> Export CSV</a>
+      </div>
+      <div class="stat-grid four" id="expStats"></div>
+      <div class="exp-grid">
+        <div class="panel" style="margin:0">
+          <h2>Spending by content type</h2>
+          <p class="hint">Paid bookings grouped by format.</p>
+          <table class="table"><thead><tr><th>Content type</th><th>Bookings</th><th style="text-align:right">Total</th></tr></thead><tbody id="expKind"></tbody></table>
+        </div>
+        <div class="panel" style="margin:0">
+          <h2>Spending by month</h2>
+          <p class="hint">Last 6 months by license date.</p>
+          <table class="table"><thead><tr><th>Month</th><th>Bookings</th><th style="text-align:right">Total</th></tr></thead><tbody id="expMonth"></tbody></table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Recent expenses</h2>
+        <p class="hint">Every paid booking, newest first.</p>
+        <table class="table"><thead><tr><th>Title / vendor</th><th>Window</th><th>Invoice</th><th style="text-align:right">Total</th></tr></thead><tbody id="expRows"></tbody></table>
+      </div>
+      <div class="page-foot"><span>© 2026 Relay Network · All amounts in USD</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+let expenses = { rows: [], total: 0, count: 0 };
+
+async function load() {
+  const u = await guard("station");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  expenses = await (await fetch("/api/expenses")).json();
+  render();
+}
+
+function render() {
+  const rows = expenses.rows || [];
+  const month = todayEST().slice(0, 7);
+  const monthRows = rows.filter(r => (r.date || "").slice(0, 7) === month);
+  const monthTotal = monthRows.reduce((n, r) => n + (r.total || 0), 0);
+  const byKind = {};
+  rows.forEach(r => {
+    const k = r.kindLabel || "Other";
+    byKind[k] = byKind[k] || { n: 0, t: 0 };
+    byKind[k].n++;
+    byKind[k].t += r.total || 0;
+  });
+  const kinds = Object.entries(byKind).sort((a, b) => b[1].t - a[1].t);
+  const top = kinds[0];
+  document.getElementById("expStats").innerHTML =
+    "<div class='stat'><span>Total spend</span><b>" + money(expenses.total || 0) + "</b><span>" + (expenses.count || 0) + " paid bookings</span></div>" +
+    "<div class='stat'><span>This month · " + esc(month) + "</span><b>" + money(monthTotal) + "</b><span>" + monthRows.length + " bookings</span></div>" +
+    "<div class='stat'><span>Average per booking</span><b>" + money(rows.length ? (expenses.total || 0) / rows.length : 0) + "</b><span>Across paid bookings</span></div>" +
+    "<div class='stat'><span>Top category</span><b style='font-size:22px'>" + esc(top ? top[0] : "—") + "</b><span>" + (top ? money(top[1].t) + " · " + top[1].n + " bookings" : "No spend yet") + "</span></div>";
+  const kb = document.getElementById("expKind");
+  kb.innerHTML = kinds.length ? "" : "<tr><td colspan='3' style='color:var(--faint)'>No paid bookings yet.</td></tr>";
+  kinds.forEach(([k, v]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td><b>" + esc(k) + "</b></td><td>" + v.n + "</td><td style='text-align:right'><b>" + money(v.t) + "</b></td>";
+    kb.appendChild(tr);
+  });
+  const byMonth = {};
+  rows.forEach(r => {
+    const m = (r.date || "").slice(0, 7);
+    if (!m) return;
+    byMonth[m] = byMonth[m] || { n: 0, t: 0 };
+    byMonth[m].n++;
+    byMonth[m].t += r.total || 0;
+  });
+  const months = Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6);
+  const mb = document.getElementById("expMonth");
+  mb.innerHTML = months.length ? "" : "<tr><td colspan='3' style='color:var(--faint)'>No paid bookings yet.</td></tr>";
+  months.forEach(([m, v]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td><b>" + esc(m) + "</b></td><td>" + v.n + "</td><td style='text-align:right'><b>" + money(v.t) + "</b></td>";
+    mb.appendChild(tr);
+  });
+  const rb = document.getElementById("expRows");
+  rb.innerHTML = rows.length ? "" : "<tr><td colspan='4' style='color:var(--faint)'>No paid bookings yet. Book a live feed or license finished content from the marketplace.</td></tr>";
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td><b>" + esc(r.title) + "</b><br><span class='micro'>" + esc(r.vendor) + "</span></td>" +
+      "<td>" + esc(r.window) + "</td><td>" + esc(r.invoice) + "</td>" +
+      "<td style='text-align:right'><b>" + money(r.total) + "</b></td>";
+    rb.appendChild(tr);
+  });
+}
+
+document.getElementById("expExport").onclick = e => {
+  e.preventDefault();
+  const rows = expenses.rows || [];
+  if (!rows.length) { alert("No expenses to export yet."); return; }
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const csv = ["booking_id,title,vendor,date,window,invoice,total_usd"].concat(rows.map(r =>
+    [q(r.bookingId), q(r.title), q(r.vendor), q(r.date), q(r.window), q(r.invoice), Number(r.total || 0).toFixed(2)].join(","))).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "relay-expenses-" + todayEST() + ".csv";
+  a.click();
+};
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Relay</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="relay-wrap rauth">
+  <aside class="relay-side">
+    <div class="relay-logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="13" width="3.4" height="8" rx="1.7"/><rect x="7.4" y="8" width="3.4" height="13" rx="1.7"/><rect x="12.8" y="3" width="3.4" height="18" rx="1.7"/><rect x="18.2" y="9.5" width="3.4" height="11.5" rx="1.7"/></svg>relay</div>
+    <p class="relay-kicker">YOUR LOCAL BROADCAST NETWORK</p>
+    <p class="relay-hero">Independent.<br>Never alone.</p>
+    <p class="relay-body">From the first live shot to the final broadcast. Create, produce and distribute together — entirely in the cloud.</p>
+    <div class="relay-livecard">
+      <div class="top"><span class="livebadge"><span class="dot"></span>LIVE NETWORK</span><span class="where">U.S. LOCAL &amp; REGIONAL</span></div>
+      <h4>Local stories.<br>Regional reach.</h4>
+      <div class="rule"></div>
+      <div class="stats"><div><b>U.S.</b><span>local &amp; regional network</span></div><div><b>24/7</b><span>cloud production</span></div></div>
+    </div>
+    <p class="relay-foot">LOCAL STORIES. CONNECTED STATIONS. RELAY.</p>
+  </aside>
+
+  <main class="relay-main"><div class="inner">
+    <div class="relay-toprow"><span>STEP 01 / 01 · SIGN IN</span><span>New to Relay? <button id="go-signup" type="button">Create account →</button></span></div>
+    <h1>Sign in to Relay.</h1>
+    <p class="sub">Stations, contributors and partners each land in their own workspace.</p>
+    <form id="loginForm">
+      <div class="fgrid">
+        <label class="fld">Work email<input id="lEmail" type="email" required autocomplete="email" placeholder="you@station.tv"></label>
+        <label class="fld">Password<input id="lPass" type="password" required autocomplete="current-password" placeholder="Your password"></label>
+      </div>
+      <p class="err" id="loginErr"></p>
+      <button class="relay-submit" type="submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M13 5l7 7-7 7"/></svg><span>Sign in</span></button>
+    </form>
+    <div class="prof-row"><h2>Try a demo account</h2><span>one click fills &amp; signs in</span></div>
+    <div class="demo-grid">
+      <button class="btn btn-ghost" data-email="station@metroline.tv" data-pass="relay-station"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/></svg> Station — Metroline TV</button>
+      <button class="btn btn-ghost" data-email="maya@mayachen.media" data-pass="relay-creator"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 16 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> Contributor — Maya Chen</button>
+      <button class="btn btn-ghost" data-email="owner@harborview.hotel" data-pass="relay-partner"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Partner — Harborview Hotel</button>
+    </div>
+    <p class="relay-caption">Sessions stay on this device only.</p>
+    <div class="relay-footer"><span>© 2026 Relay Network</span><span>English (US)</span></div>
+  </div></main>
+</div>
+<script>
+const HOMES = { station: "/discover", contributor: "/contributor", partner: "/partner" };
+const params = new URLSearchParams(location.search);
+const next = params.get("next");
+fetch("/api/me").then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
+  if (u) location.href = (next && next[0] === "/") ? next : HOMES[u.role];
+});
+async function signin(email, password) {
+  const err = document.getElementById("loginErr");
+  err.textContent = "";
+  const r = await fetch("/api/login", { method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ email: email, password: password }) });
+  const data = await r.json().catch(function () { return {}; });
+  if (!r.ok) { err.textContent = data.error || "Couldn't sign you in."; return; }
+  location.href = (next && next[0] === "/") ? next : HOMES[data.role];
+}
+document.getElementById("go-signup").onclick = function () { location.href = "/signup"; };
+document.getElementById("loginForm").onsubmit = function (e) {
+  e.preventDefault();
+  signin(document.getElementById("lEmail").value, document.getElementById("lPass").value);
+};
+document.querySelectorAll(".demo-grid button").forEach(function (b) {
+  b.onclick = function () {
+    document.getElementById("lEmail").value = b.dataset.email;
+    document.getElementById("lPass").value = b.dataset.pass;
+    signin(b.dataset.email, b.dataset.pass);
+  };
+});
+
+</script>
+</body>
+</html>

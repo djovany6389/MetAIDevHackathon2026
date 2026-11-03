@@ -1,0 +1,33 @@
+[
+ {
+  "code": "NYC-01",
+  "coords": "40.70\u00b0 N, 74.01\u00b0 W",
+  "id": "nyc-01",
+  "location": "Harborview Hotel rooftop",
+  "market": "New York, NY",
+  "name": "New York Harbor",
+  "net": 28.8,
+  "owner": "owner@harborview.hotel",
+  "rate": 48.0,
+  "signal": "1080p29.97 \u00b7 8 Mbps \u00b7 99.9% uptime",
+  "status": "live",
+  "thumb": "img/harbor.svg",
+  "uplink": ""
+ },
+ {
+  "id": "f_642f31fd",
+  "code": "CAM-02",
+  "name": "Marriott Downtown",
+  "location": "Rooftop",
+  "market": "Orlando, FL",
+  "coords": "",
+  "rate": 20.0,
+  "net": 12.0,
+  "status": "live",
+  "signal": "1080p29.97 \u00b7 SRT / HLS",
+  "thumb": "img/harbor.svg",
+  "owner": "owner@harborview.hotel",
+  "created": "2026-10-30T01:15:20.261974+00:00",
+  "uplink": ""
+ }
+]

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · My assignments</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.room { border: 1px solid var(--line); border-radius: 14px; background: #fff; margin-bottom: 18px; overflow: hidden; }
+.room-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+.room-head h2 { margin: 4px 0 6px; font-size: 22px; }
+.room-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0; }
+.room-grid > div { padding: 16px 20px; }
+.room-grid > div:first-child { border-right: 1px solid var(--line); }
+.room h3 { font-size: 14px; margin: 0 0 10px; }
+.room .kv { font-size: 13px; }
+.room video, .room audio { width: 100%; border-radius: 10px; background: #000; }
+.pv-wrap { position: relative; }
+.pv-wrap .wm { position: absolute; top: 10px; right: 12px; font-family: var(--mono); font-size: 10px; color: rgba(255,255,255,.85); text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+.note { border-top: 1px solid var(--line); padding: 10px 0; font-size: 13.5px; }
+.note .tc { font-family: var(--mono); font-weight: 700; color: var(--brand-dark); cursor: pointer; }
+.note.done { opacity: .6; }
+.checks { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+.checks li { margin: 6px 0; }
+.room .checks li::before { content: none; }
+@media (max-width: 1080px) { .room-grid { grid-template-columns: 1fr; } .room-grid > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments" class="active">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>My assignments.</h1>
+        <p>Briefs stations assigned to you. Produce the work, submit the delivery, track approval.</p></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><b id="stActive">–</b><span>in production</span></div>
+        <div class="stat"><b id="stReview">–</b><span>in review</span></div>
+        <div class="stat"><b id="stDone">–</b><span>completed</span></div>
+      </div>
+      <div id="rooms"></div>
+      <div class="page-foot"><span>Deliveries go to the station that assigned the brief.</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+const PILLS = { assigned: "IN PROGRESS", submitted: "IN REVIEW", completed: "COMPLETED" };
+let assetMeta = {};
+function tcSeconds(tc){
+  const p = (tc || "").split(":").map(Number);
+  if (p.length === 2) return p[0] * 60 + p[1];
+  if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
+  return 0;
+}
+function fmtDate(s){ return estStamp(s); }
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  const rqRes = await fetch("/api/requests");
+  const all = rqRes.ok ? await rqRes.json().catch(() => []) : [];
+  const mine = (Array.isArray(all) ? all : []).filter(b => b.mine);
+  const asRes = await fetch("/api/assets");
+  const assets = asRes.ok ? await asRes.json().catch(() => []) : [];
+  assetMeta = {};
+  assets.forEach(a => assetMeta[a.id] = a);
+  document.getElementById("stActive").textContent = mine.filter(b => b.status === "assigned").length;
+  document.getElementById("stReview").textContent = mine.filter(b => b.status === "submitted").length;
+  document.getElementById("stDone").textContent = mine.filter(b => b.status === "completed").length;
+  const el = document.getElementById("rooms");
+  el.innerHTML = "";
+  if (!mine.length) {
+    el.innerHTML = "<div class='brief'><h3>No assignments yet.</h3><p>When a station accepts one of your applications, the brief lands here with its full production details.</p><a class='btn btn-primary' style='width:auto' href='/contributor'>Browse open briefs</a></div>";
+    return;
+  }
+  mine.forEach(b => el.appendChild(room(b, u)));
+  el.querySelectorAll(".modbox").forEach(x => enhanceMod(x, false));
+}
+function room(b, u){
+  const open = (b.notes || []).filter(n => !n.resolved).length;
+  const versions = b.deliveries || [];
+  const latest = b.delivery || {};
+  const d = document.createElement("div");
+  d.className = "room";
+  d.innerHTML =
+    "<div class='room-head'><div class='micro'>" + esc(b.stationName || "") + " · " + esc(b.type || "Coverage") + " · <b>" + esc(PILLS[b.status] || "") + "</b>" + (open ? " · <b>" + open + " NOTE" + (open === 1 ? "" : "S") + " OPEN</b>" : "") + "</div>" +
+    "<h2>" + esc(b.title) + "</h2><p class='fine' style='margin:0'>" + esc([b.deliverable, (b.roles || []).join(" / "), b.budget, b.due ? "Due " + b.due : ""].filter(Boolean).join(" · ")) + "</p></div>" +
+    "<div class='room-grid'><div>" + previewHtml(b, latest) + versionsHtml(b, versions) + submitHtml(b) + "</div>" +
+    "<div>" + briefHtml(b) + progressHtml(b, versions, open) + peopleHtml(b, u) + notesHtml(b) + "</div></div>";
+  wireRoom(d, b);
+  return d;
+}
+function previewHtml(b, latest){
+  if (!latest.assetId || !assetMeta[latest.assetId]) return "<h3>Preview</h3><p class='fine'>No delivery file yet — submit one below and it previews here.</p>";
+  const a = assetMeta[latest.assetId];
+  const isAudio = (a.mime || "").indexOf("audio") === 0;
+  const tag = isAudio
+    ? "<audio controls src='/assets/" + encodeURIComponent(a.id) + "'></audio>"
+    : "<div class='pv-wrap'><video id='pv_" + esc(b.id) + "' controls preload='metadata' onplay=\"attachRollup(this, '" + a.id + "')\" src='/assets/" + encodeURIComponent(a.id) + "'></video><span class='wm'>WATERMARKED PREVIEW</span></div>";
+  return "<h3>Latest delivery · v" + (latest.v || 1) + "</h3>" + tag + "<p class='fine'>" + esc(a.name) + (latest.note ? " — “" + esc(latest.note) + "”" : "") + "</p>" +
+    "<div class='modbox' data-aid='" + a.id + "'" + (isAudio ? "" : " data-video='1'") + "></div>";
+}
+function versionsHtml(b, versions){
+  if (!versions.length) return "";
+  const rows = versions.slice().reverse().map(v => {
+    const a = v.assetId ? assetMeta[v.assetId] : null;
+    return "<div class='kv'><span>v" + v.v + " · " + fmtDate(v.at) + (v.note ? " — “" + esc(v.note) + "”" : "") + "</span>" +
+      (a ? "<a href='/assets/" + encodeURIComponent(a.id) + "' target='_blank' rel='noopener'>" + esc(a.name) + " " + icon("external", 12) + "</a>" : "<b>note only</b>") + "</div>";
+  }).join("");
+  return "<h3 style='margin-top:16px'>Version history</h3>" + rows;
+}
+function submitHtml(b){
+  if (b.status !== "assigned") return "";
+  const opts = Object.values(assetMeta).filter(a => a.complete).map(a => "<option value='" + esc(a.id) + "'>" + esc(a.name) + "</option>").join("");
+  return "<h3 style='margin-top:16px'>Submit delivery</h3>" +
+    (b.feedback ? "<div class='warn'>" + icon("alert", 14) + " Station feedback: " + esc(b.feedback) + "</div>" : "") +
+    "<div class='field' style='margin:10px 0'><label>Delivery file (from your <a href='/media'>media library</a> — upload it there first)</label><select class='sel'><option value=''>No file — note only</option>" + opts + "</select></div>" +
+    "<div class='field' style='margin:10px 0'><label>Delivery note</label><input class='note' placeholder='What you delivered, versions, runtime…'></div>" +
+    "<button class='btn btn-primary act' style='width:auto'>Submit delivery</button>";
+}
+function briefHtml(b){
+  const rows = [["Deliverable", b.deliverable], ["Language", b.language], ["Roles", (b.roles || []).join(", ")],
+    ["Assets", (b.assets || []).join(", ")], ["Arrangement", b.arrangement], ["Location", b.location],
+    ["Starts", b.starts], ["Due", b.due], ["Budget", b.budget], ["Exclusivity", b.exclusivity],
+    ["Rights", (b.rights || []).join(", ")]].filter(([k, v]) => v).map(([k, v]) => "<div class='kv'><span>" + esc(k) + "</span><b>" + esc(v) + "</b></div>").join("");
+  return "<h3>Brief &amp; rights</h3><p class='fine'>" + esc(b.brief || "") + "</p>" + rows;
+}
+function progressHtml(b, versions, open){
+  const li = (done, label) => "<li>" + (done ? icon("checkcircle", 13) : icon("circle", 13)) + " " + esc(label) + "</li>";
+  return "<h3 style='margin-top:16px'>Progress</h3><ul class='checks'>" +
+    li(true, "Assigned" + (b.assignedAt ? " · " + fmtDate(b.assignedAt) : "")) +
+    li(versions.length > 0, versions.length ? versions.length + " deliver" + (versions.length === 1 ? "y" : "ies") + " submitted" : "Delivery submitted") +
+    li(b.status === "completed", b.status === "completed" ? "Approved" + (b.completedAt ? " · " + fmtDate(b.completedAt) : "") : (b.status === "submitted" ? "Awaiting station review" : "Station approval")) +
+    li(open === 0, open ? open + " open notes" : "No open notes") + "</ul>";
+}
+function peopleHtml(b, u){
+  return "<h3 style='margin-top:16px'>People</h3>" +
+    "<div class='kv'><span>Station</span><b>" + esc(b.stationName || "") + "</b></div>" +
+    "<div class='kv'><span>Assigned to</span><b>" + esc(u.name) + " (you)</b></div>";
+}
+function notesHtml(b){
+  const notes = (b.notes || []).map(n =>
+    "<div class='note" + (n.resolved ? " done" : "") + "'>" +
+    (n.tc ? "<span class='tc' data-tc='" + esc(n.tc) + "'>" + esc(n.tc) + " " + icon("play", 12) + "</span> " : "") +
+    "<b>" + esc(n.author || "") + "</b> <span class='micro'>· " + esc(n.role || "") + " · " + fmtDate(n.at) + (n.resolved ? " · RESOLVED" : "") + "</span><br>" + esc(n.text) +
+    "<br><a href='#' class='res' data-id='" + esc(n.id) + "' style='font-size:12.5px;font-weight:700'>" + (n.resolved ? "Reopen" : "Mark resolved") + "</a></div>").join("");
+  return "<h3 style='margin-top:16px'>Review notes</h3>" + (notes || "<p class='fine'>No notes yet.</p>") +
+    "<div class='two' style='margin-top:10px'><div class='field'><label>Note</label><input class='nt' placeholder='Write a note…'></div>" +
+    "<div class='field'><label>Timecode (optional)</label><input class='tc' placeholder='01:12' style='max-width:110px'></div></div>" +
+    "<div style='margin-top:8px'><button class='btn btn-ghost post' style='width:auto'>Post note</button></div>";
+}
+function wireRoom(d, b){
+  const sub = d.querySelector(".act");
+  if (sub) sub.onclick = async () => {
+    const body = { assetId: d.querySelector(".sel").value, note: d.querySelector(".note").value };
+    const r = await fetch("/api/requests/" + b.id + "/submit", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't submit that delivery."); return; }
+    load();
+  };
+  d.querySelectorAll(".res").forEach(a => a.onclick = async (e) => {
+    e.preventDefault();
+    await fetch("/api/requests/" + b.id + "/notes/" + a.dataset.id + "/resolve", { method: "POST" });
+    load();
+  });
+  d.querySelector(".post").onclick = async () => {
+    const text = d.querySelector(".nt").value.trim();
+    const tc = d.querySelector(".tc").value.trim();
+    if (!text) return;
+    const r = await fetch("/api/requests/" + b.id + "/notes", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ text: text, tc: tc }) });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't post that note."); return; }
+    load();
+  };
+  d.querySelectorAll(".tc[data-tc]").forEach(t => t.onclick = () => {
+    const v = document.getElementById("pv_" + b.id);
+    if (v && v.duration) { v.currentTime = Math.min(tcSeconds(t.dataset.tc), v.duration - 0.5); v.play().catch(() => {}); }
+  });
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Station content marketplace</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.card-thumb video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 2; }
+button.card-play { position: absolute; right: 10px; bottom: 8px; z-index: 3; background: rgba(13,29,27,.7); color: #fff; border: 0; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; font-size: 14px; line-height: 1; }
+button.card-play:hover { background: rgba(13,29,27,.9); }
+.card-err { position: absolute; left: 10px; right: 10px; bottom: 52px; z-index: 3; font-size: 12px; color: #ffd9d9; background: rgba(80,10,10,.85); border-radius: 6px; padding: 6px 9px; }
+.card-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ai-search { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.ai-search input { font: inherit; font-size: 13px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: inherit; }
+.ai-search #aiq { flex: 1; min-width: 220px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom</div>
+      <a href="/discover" class="active">◉ Discover</a>
+      <a href="/bookings">((·)) My bookings</a>
+      <a href="/expenses">$ Expense report</a>
+      <a href="/requests">▤ Coverage requests</a>
+      <a href="/request">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION ⌄</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">The U.S. local &amp; regional content network</div>
+        <h1>Find your next show, episode or live feed.</h1>
+        <p>TV shows, podcasts, news and live feeds for U.S. local and regional stations. Discover by city, state and market.</p></div>
+        <a class="btn btn-primary" href="/request"><i data-ic="plus" data-size="15"></i> Request coverage</a>
+      </div>
+
+      <div class="banner">
+        <div class="banner-copy">
+          <span class="pill-live"><span class="live-dot"></span> LIVE NOW</span> <span class="micro" style="color:#9db3ac" id="onlineCount"></span>
+          <h2>Find shows, podcasts and live feeds for your market.</h2>
+          <p>Independent creators, live sources and finished content for TV, podcast and digital teams.</p>
+        </div>
+        <div class="banner-img"><img src="img/harbor.svg" alt="New York Harbor live feed"><div class="cap" id="bannerCap">RELAY NETWORK</div></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search"><i data-ic="search" data-size="16"></i><input id="q" placeholder="Search shows, podcasts, stories, creators or live feeds"></div>
+        <select class="select-btn" id="marketFilter"><option value="">All U.S. markets</option></select>
+        <select class="select-btn" id="availFilter"><option value="">All availability</option><option value="live">Live now</option><option value="bookable">Bookable</option></select>
+        <select class="select-btn" id="sortSel"><option value="rec">Sort: Recommended</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select>
+      </div>
+      <div class="ai-search">
+        <input id="aiq" placeholder='Ask in plain language: "flooding in the Caribbean from last month"'>
+        <input id="aiFrom" type="date" title="Recorded from">
+        <input id="aiTo" type="date" title="Recorded to">
+        <button class="btn btn-primary" id="aiGo" style="width:auto">AI search</button>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="list-head"><h2>Available content <span>TV shows, podcasts, live sources and packages</span></h2><span class="sort" id="savedNote"></span> <span class="sort" id="aiNote"></span></div>
+      <div class="cards" id="cards"></div>
+      <div class="page-foot"><span>All rates in USD. Rights, availability and delivery format confirmed before booking.</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.7.4/dist/hls.min.js"></script>
+<script src="js/auth.js"></script>
+<script>
+let catalog = [], saved = [], tab = "all";
+let aiActive = false, aiResults = [], aiLabel = "";
+async function aiSearch(){
+  const q = document.getElementById("aiq").value.trim();
+  const from = document.getElementById("aiFrom").value;
+  const to = document.getElementById("aiTo").value;
+  if (!q && !from && !to) return;
+  const btn = document.getElementById("aiGo");
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/search", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ q: q, from: from, to: to }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.error || "AI search failed."); return; }
+    aiActive = true;
+    aiResults = body.results || [];
+    const p = body.parsed || {};
+    aiLabel = q || ("recorded " + (p.from || "…") + " to " + (p.to || "…"));
+    if (body.fallback) aiLabel += " (keyword match)";
+    render();
+  } finally {
+    btn.disabled = false;
+  }
+}
+let previewHls = null, previewId = null, previewTimer = 0;
+function stopPreview(){
+  if (previewHls) { try { previewHls.destroy(); } catch (e) {} previewHls = null; }
+  clearTimeout(previewTimer);
+  previewId = null;
+  document.querySelectorAll(".card-thumb video").forEach(v => { try { v.pause(); } catch (e) {} v.remove(); });
+  document.querySelectorAll(".card-thumb .cc608").forEach(e => e.remove());
+  document.querySelectorAll(".card-err").forEach(e => e.remove());
+  document.querySelectorAll("button.card-play").forEach(b => b.innerHTML = icon("play", 15));
+}
+function showPreviewNote(box, msg, neutral){
+  box.querySelectorAll(".card-err").forEach(e => e.remove());
+  const d = document.createElement("div");
+  d.className = "card-err";
+  if (neutral) d.style.background = "rgba(13,29,27,.85)";
+  if (neutral) d.style.color = "#fff";
+  d.textContent = msg;
+  box.appendChild(d);
+}
+function playPreview(card, box, c){
+  if (previewId === c.id) { stopPreview(); return; }
+  stopPreview();
+  previewId = c.id;
+  card.querySelector("button.card-play").innerHTML = icon("x", 15);
+  const video = document.createElement("video");
+  video.controls = true;
+  video.playsInline = true;
+  video.addEventListener("play", () => attachRollup(video, ccAid(c.stream)), { once: true });
+  box.appendChild(video);
+  const primary = c.reviewStream || c.stream;
+  const sources = [primary]
+    .concat(c.stream && c.stream !== primary ? [c.stream] : [])
+    .concat(c.streamFallback ? [c.streamFallback] : []);
+  let attempt = 0;
+  const start = () => {
+    const p = video.play();
+    if (p) p.catch(() => { video.muted = true; video.play().catch(() => {}); });
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+      if (previewId === c.id && !video.videoWidth && video.currentTime > 0 && !video.ended)
+        showPreviewNote(box, "Audio-only broadcast — this channel isn't sending video right now.", true);
+    }, 5000);
+  };
+  const fail = () => {
+    attempt++;
+    if (previewId !== c.id) return;
+    if (attempt < sources.length) { attach(sources[attempt]); }
+    else showPreviewNote(box, "Couldn't load this preview.");
+  };
+  const killHls = () => { if (previewHls) { try { previewHls.destroy(); } catch (e) {} previewHls = null; } };
+  const attach = (url) => {
+    killHls();
+    const isHls = /\.m3u8($|\?)/i.test(url || "");
+    if (!isHls || video.canPlayType("application/vnd.apple.mpegurl")) {
+      try { video.src = url; } catch (e) { fail(); return; }
+      video.onerror = fail;
+      start();
+    } else if (window.Hls && window.Hls.isSupported()) {
+      const hls = new Hls({ maxBufferLength: 30 });
+      previewHls = hls;
+      hls.on(Hls.Events.ERROR, (ev, data) => { if (data && data.fatal) fail(); });
+      hls.on(Hls.Events.MANIFEST_PARSED, start);
+      try { hls.loadSource(url); hls.attachMedia(video); }
+      catch (e) { fail(); }
+    } else {
+      showPreviewNote(box, "Preview needs Safari or an HLS-capable browser.");
+    }
+  };
+  attach(sources[0]);
+}
+const savedOnly = new URLSearchParams(location.search).get("saved") === "1";
+const KIND_TABS = [["all","All content"],["irl","IRL live"],["tower","Tower cameras"],["package","Packages"],["event","Live productions"]];
+const BADGE = { live: "", ready: "dark", soon: "dark", license: "", av: "", offline: "amber", pending: "amber" };
+function inTab(c){
+  if (tab === "all") return true;
+  if (tab === "package") return ["package","show","podcast","raw"].includes(c.kind);
+  return c.kind === tab;
+}
+async function load(){
+  const u = await guard("station"); if (!u) return; topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  catalog = await (await fetch("/api/content")).json();
+  saved = (await (await fetch("/api/saved")).json()).saved || [];
+  const live = catalog.filter(c => c.status === "live").length;
+  document.getElementById("onlineCount").textContent = live + (live === 1 ? " source online" : " sources online");
+  const first = catalog.find(c => c.status === "live") || catalog[0];
+  if (first) document.getElementById("bannerCap").textContent = (first.title.split("·")[0].trim() + " / " + (first.market || "")).toUpperCase();
+  const markets = [...new Set(catalog.map(c => c.market).filter(Boolean))].sort();
+  const mf = document.getElementById("marketFilter");
+  markets.forEach(m => { const o = document.createElement("option"); o.value = m; o.textContent = m; mf.appendChild(o); });
+  const tabs = document.getElementById("tabs");
+  KIND_TABS.forEach(([k,label]) => {
+    const n = k === "all" ? catalog.length : catalog.filter(inTabFn(k)).length;
+    const b = document.createElement("button");
+    b.textContent = label + " " + n;
+    if (k === "all") b.classList.add("active");
+    b.onclick = () => { tab = k; tabs.querySelectorAll("button").forEach(x => x.classList.remove("active")); b.classList.add("active"); render(); };
+    tabs.appendChild(b);
+  });
+  if (savedOnly) document.getElementById("savedNote").textContent = "Showing saved content ×";
+  document.getElementById("savedNote").style.cursor = savedOnly ? "pointer" : "";
+  document.getElementById("savedNote").onclick = savedOnly ? () => location.href = "/discover" : null;
+  ["q","marketFilter","availFilter","sortSel"].forEach(id => document.getElementById(id).oninput = render);
+  document.getElementById("aiGo").onclick = aiSearch;
+  document.getElementById("aiq").onkeydown = e => { if (e.key === "Enter") aiSearch(); };
+  document.getElementById("aiFrom").onchange = () => { if (aiActive) aiSearch(); };
+  document.getElementById("aiTo").onchange = () => { if (aiActive) aiSearch(); };
+  render();
+}
+function inTabFn(k){
+  return function(c){
+    if (k === "all") return true;
+    if (k === "package") return ["package","show","podcast","raw"].includes(c.kind);
+    return c.kind === k;
+  };
+}
+function match(c){
+  const q = document.getElementById("q").value.toLowerCase();
+  if (q && !(c.title + " " + c.owner + " " + c.market + " " + c.kindLabel).toLowerCase().includes(q)) return false;
+  if (!inTab(c)) return false;
+  const m = document.getElementById("marketFilter").value;
+  if (m && c.market !== m) return false;
+  const a = document.getElementById("availFilter").value;
+  if (a === "live" && c.status !== "live") return false;
+  if (a === "bookable" && c.bookable === false) return false;
+  if (savedOnly && !saved.includes(c.id)) return false;
+  return true;
+}
+function modPillsFor(c){
+  return modPillFor(c.moderation, c.moderationFlags) + aiPillFor(c.moderationAi);
+}
+const polledMods = new Set();
+function pollMarketplace(){
+  catalog.filter(c => c.moderation === "pending" && c.asset && !polledMods.has(c.asset)).forEach(c => {
+    polledMods.add(c.asset);
+    const aid = c.asset;
+    const tick = async () => {
+      let body = {};
+      try {
+        const r = await fetch("/api/assets/" + encodeURIComponent(aid) + "/moderation");
+        body = r.ok ? await r.json() : {};
+      } catch (e) { return; }
+      const st = body.status || "none";
+      if (st === "pending") { setTimeout(tick, 4000); return; }
+      catalog.concat(aiResults).forEach(x => {
+        if (x.asset !== aid) return;
+        x.moderation = st;
+        x.moderationAi = body.ai || {};
+        x.moderationFlags = (body.flags || []).length;
+        if (st === "flagged") x.reviewStream = "/assets/" + encodeURIComponent(aid) + "?review=1";
+      });
+      const done = catalog.find(x => x.asset === aid);
+      document.querySelectorAll("[data-modpill='" + aid + "']").forEach(elm => {
+        elm.innerHTML = done ? modPillsFor(done) : "";
+      });
+    };
+    setTimeout(tick, 4000);
+  });
+}
+function render(){
+  stopPreview();
+  const el = document.getElementById("cards");
+  el.innerHTML = "";
+  const note = document.getElementById("aiNote");
+  if (aiActive) {
+    note.textContent = "AI results ×";
+    note.title = aiLabel;
+    note.style.cursor = "pointer";
+    note.onclick = () => { aiActive = false; aiResults = []; render(); };
+  } else {
+    note.textContent = "";
+    note.style.cursor = "";
+    note.onclick = null;
+  }
+  let list = (aiActive ? aiResults : catalog).filter(match);
+  const sort = document.getElementById("sortSel").value;
+  if (sort === "lo") list = list.slice().sort((a,b) => a.price - b.price);
+  if (sort === "hi") list = list.slice().sort((a,b) => b.price - a.price);
+  if (!list.length) {
+    el.innerHTML = "<div class='panel' style='grid-column:1/-1'><h2>" +
+      (savedOnly ? "No saved content yet." : catalog.length ? "Nothing matches these filters." : "No content published yet.") +
+      "</h2><p class='hint'>" + (savedOnly ? "Tap ⚑ on anything to keep it here." : catalog.length ? "Try clearing a filter." : "Check back soon — new feeds and shows land here.") + "</p></div>";
+    return;
+  }
+  list.forEach(c => {
+    const isSaved = saved.includes(c.id);
+    const d = document.createElement("div");
+    d.className = "card";
+    const dot = c.status === "live" ? "<span class='live-dot'></span> " : "";
+    const pills = modPillsFor(c);
+    d.innerHTML =
+      "<div class='card-thumb'><img src='" + esc(c.thumb) + "' alt=''><span class='badge " + (BADGE[c.status]||"") + "'>" + dot + esc((c.statusLabel||"").toUpperCase()) + "</span><button class='save" + (isSaved ? " fill" : "") + "' title='" + (isSaved ? "Remove from saved" : "Save for later") + "'>" + icon("bookmark", 15) + "</button>" + (c.stream ? "<button class='card-play' title='Preview live stream'>" + icon("play", 15) + "</button>" : "") + "<span class='card-meta'>" + esc(c.meta||"") + "</span></div>" +
+      "<div class='card-body'><div class='card-kind'><b>" + esc(c.kindLabel) + "</b><span>" + esc(c.market||"") + "</span></div>" + (c.recorded ? "<div class='micro'>Recorded " + esc(c.recorded) + "</div>" : "") + "<h3>" + esc(c.title) + "</h3><p class='card-filed'>" + esc(c.filed||"") + "</p>" +
+      (pills ? "<div class='card-flags' data-modpill='" + esc(c.asset || "") + "'>" + pills + "</div>" : "") +
+      "<div class='card-foot'><span class='price'>" + money(c.price) + " <small>/ " + esc(c.unit) + "</small></span><a href='/booking?id=" + encodeURIComponent(c.id) + "'>" + (c.bookable === false ? "View (offline)" : "View content") + " " + icon("external", 12) + "</a></div></div>";
+    const playBtn = d.querySelector("button.card-play");
+    if (playBtn) playBtn.onclick = (e) => { e.preventDefault(); playPreview(d, d.querySelector(".card-thumb"), c); };
+    d.querySelector(".save").onclick = async (e) => {
+      e.preventDefault();
+      if (isSaved) {
+        await fetch("/api/saved/" + encodeURIComponent(c.id), { method: "DELETE" });
+        saved = saved.filter(x => x !== c.id);
+      } else {
+        await fetch("/api/saved", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ contentId: c.id }) });
+        saved.push(c.id);
+      }
+      render();
+    };
+    el.appendChild(d);
+  });
+  pollMarketplace();
+}
+load();
+</script>
+</body>
+</html>

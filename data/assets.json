@@ -1,0 +1,51 @@
+[
+ {
+  "id": "as_8554d64a",
+  "name": "BigBuckBunny_320x180.mp4",
+  "stored": "as_8554d64a_BigBuckBunny_320x180.mp4",
+  "size": 64657027,
+  "received": 64657027,
+  "chunks": 62,
+  "mime": "video/mp4",
+  "owner": "maya@mayachen.media",
+  "created": "2026-10-30T18:45:21.288782+00:00",
+  "complete": true
+ },
+ {
+  "id": "as_a2dbc53a",
+  "name": "test.mp4",
+  "stored": "as_a2dbc53a_test.mp4",
+  "size": 8369937,
+  "received": 8369937,
+  "chunks": 8,
+  "mime": "video/mp4",
+  "owner": "maya@mayachen.media",
+  "created": "2026-10-31T01:35:04.126658+00:00",
+  "complete": true
+ },
+ {
+  "id": "as_8b524481",
+  "name": "gemini_generated_video_4c659b8c.mp4",
+  "stored": "as_8b524481_gemini_generated_video_4c659b8c.mp4",
+  "size": 4916039,
+  "received": 4916039,
+  "chunks": 5,
+  "mime": "video/mp4",
+  "owner": "maya@mayachen.media",
+  "created": "2026-10-31T01:55:34.382262+00:00",
+  "complete": true
+ },
+ {
+  "id": "as_5e41e6fe",
+  "name": "YTDown.com_YouTube_Media_j9ZL8wjVyBo_Courage-in-the-Storm-The-Story-of-Roary-and-Nia-Bed-time-storie-for-kids_001_1080p.mp4",
+  "stored": "as_5e41e6fe_YTDown.com_YouTube_Media_j9ZL8wjVyBo_Courage-in-the-Storm-The-Story-of-Roary-and-Nia-Bed-time-storie-for-kids_001_1080p.mp4",
+  "size": 65560573,
+  "received": 65560573,
+  "chunks": 63,
+  "mime": "video/mp4",
+  "owner": "maya@mayachen.media",
+  "created": "2026-10-31T17:24:59.904676+00:00",
+  "folder": "uploads",
+  "complete": true
+ }
+]

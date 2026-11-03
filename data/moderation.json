@@ -1,0 +1,44 @@
+{
+ "as_8554d64a": {
+  "status": "error",
+  "error": "install ffmpeg to scan video files",
+  "updated": "2026-10-31T01:28:01.987381+00:00"
+ },
+ "as_a2dbc53a": {
+  "status": "clean",
+  "flags": [],
+  "frames": 10,
+  "ai": {
+   "verdict": "ai",
+   "score": 1.0,
+   "judged": 10,
+   "label": "AI GENERATED VIDEO",
+   "tone": "red"
+  },
+  "updated": "2026-11-03T02:26:38.171397+00:00"
+ },
+ "as_8b524481": {
+  "status": "clean",
+  "flags": [],
+  "frames": 5,
+  "ai": {
+   "verdict": "ai",
+   "score": 1.0,
+   "judged": 5
+  },
+  "updated": "2026-10-31T02:01:21.893075+00:00"
+ },
+ "as_5e41e6fe": {
+  "status": "clean",
+  "flags": [],
+  "frames": 91,
+  "ai": {
+   "verdict": "ai",
+   "score": 1.0,
+   "judged": 90,
+   "label": "AI GENERATED VIDEO",
+   "tone": "red"
+  },
+  "updated": "2026-10-31T18:13:07.158421+00:00"
+ }
+}

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Station profile</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom</div>
+      <a href="/discover">◉ Discover</a>
+      <a href="/bookings">((·)) My bookings</a>
+      <a href="/expenses">$ Expense report</a>
+      <a href="/requests">▤ Coverage requests</a>
+      <a href="/request">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station" class="active">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Station workspace</div>
+        <h1>Station profile.</h1>
+        <p>Your station identity, studio IFB feed and sign-in details.</p></div>
+      </div>
+      <div class="panel">
+        <h2>Station</h2>
+        <div class="kv"><span>Station</span><b id="pOrg">—</b></div>
+        <div class="kv"><span>Contact</span><b id="pName">—</b></div>
+        <div class="kv"><span>Email</span><b id="pEmail">—</b></div>
+      </div>
+      <div class="panel">
+        <h2>Studio IFB feed</h2>
+        <p class="hint">Your studio comms audio (http(s) stream). It maps automatically to contributors when you book their IRL live hits, so they can hear your studio during the broadcast.</p>
+        <div class="field"><label>IFB audio stream URL</label><input id="ifbUrl" placeholder="https://studio.example.com/ifb/live.mp3"></div>
+        <p class="err" id="ifbErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-ghost" id="ifbSave">Save IFB feed</button></div>
+        <div id="ifbListen" hidden style="margin-top:12px">
+          <div class="micro" style="margin-bottom:6px">Listen to check it plays</div>
+          <audio id="ifbAudio" controls preload="none" style="width:100%"></audio>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Change password</h2>
+        <div class="two" style="margin-top:12px">
+          <div class="field"><label>Current password</label><input id="pwCur" type="password" autocomplete="current-password"></div>
+          <div class="field"><label>New password (8+ characters)</label><input id="pwNew" type="password" autocomplete="new-password"></div>
+        </div>
+        <p class="err" id="pwErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-ghost" id="pwBtn">Change password</button></div>
+      </div>
+      <div class="page-foot"><span>© 2026 Relay Network · All amounts in USD</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+async function load() {
+  const u = await guard("station");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  document.getElementById("pOrg").textContent = u.org || "—";
+  document.getElementById("pName").textContent = u.name || "—";
+  document.getElementById("pEmail").textContent = u.email || "—";
+  const res = await fetch("/api/ifb");
+  const saved = res.ok ? await res.json().catch(() => ({})) : {};
+  if (saved.url) {
+    document.getElementById("ifbUrl").value = saved.url;
+    document.getElementById("ifbAudio").src = saved.url;
+    document.getElementById("ifbListen").hidden = false;
+  }
+}
+document.getElementById("ifbSave").onclick = async () => {
+  const err = document.getElementById("ifbErr");
+  err.textContent = "";
+  const r = await fetch("/api/ifb", { method: "PUT", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ url: document.getElementById("ifbUrl").value }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't save that feed."; return; }
+  document.getElementById("ifbAudio").src = saved.url || "";
+  document.getElementById("ifbListen").hidden = !saved.url;
+  err.textContent = "";
+  alert("IFB feed saved.");
+};
+document.getElementById("pwBtn").onclick = async () => {
+  const err = document.getElementById("pwErr");
+  err.textContent = "";
+  const r = await fetch("/api/password", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({
+    current: document.getElementById("pwCur").value, new: document.getElementById("pwNew").value }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't change that password."; return; }
+  document.getElementById("pwCur").value = "";
+  document.getElementById("pwNew").value = "";
+  alert("Password changed.");
+};
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Sales</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales" class="active">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>Sales.</h1>
+        <p>Every station booking of your marketplace listings. Amounts are gross booking value in USD.</p></div>
+        <a class="btn btn-primary" href="/publish">＋ Publish work</a>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><b id="stGross">–</b><span>gross bookings</span></div>
+        <div class="stat"><b id="stCount">–</b><span>sales</span></div>
+        <div class="stat"><b id="stCust">–</b><span>station customers</span></div>
+      </div>
+      <div class="panel">
+        <table class="table"><thead><tr><th>Listing / booked</th><th>Station / date</th><th style="text-align:right">Total</th></tr></thead><tbody id="rows"></tbody></table>
+      </div>
+      <div class="page-foot"><span>Cancelled bookings are excluded. Payout terms follow your agreement with each station.</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  const res = await fetch("/api/sales");
+  const sales = res.ok ? await res.json().catch(() => ({})) : {};
+  const rows = Array.isArray(sales.rows) ? sales.rows : [];
+  document.getElementById("stGross").textContent = money(sales.gross || 0);
+  document.getElementById("stCount").textContent = rows.length;
+  document.getElementById("stCust").textContent = new Set(rows.map(r => r.station)).size;
+  const el = document.getElementById("rows");
+  el.innerHTML = "";
+  if (!rows.length) {
+    el.innerHTML = "<tr><td colspan='3' style='color:var(--faint)'>No sales yet. Publish work to the marketplace to get started.</td></tr>";
+    return;
+  }
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    const when = esc(r.date) + (r.from ? " · " + esc(r.from) + "–" + esc(r.until) + " EST" : "");
+    let ifb = "";
+    if (r.kind === "irl") {
+      if (r.stationIfb) {
+        ifb = "<br>" + (r.liveNow ? "<span class='pill p-live'><span class='live-dot'></span> LIVE NOW</span><br>" : "<span class='micro'>STUDIO IFB</span><br>") +
+          "<audio controls preload='none' src='" + esc(r.stationIfb) + "' style='width:100%;max-width:260px;margin-top:6px'></audio>";
+      } else {
+        ifb = "<br><span class='fine'>No studio IFB on file for this station yet.</span>";
+      }
+    }
+    tr.innerHTML = "<td><b>" + esc(r.title) + "</b><br><span class='micro'>" + esc(r.bookingId) + " · " + esc(estDate(r.created)) + "</span></td>" +
+      "<td>" + esc(r.station) + "<br><span class='micro'>" + when + "</span>" + ifb + "</td>" +
+      "<td style='text-align:right'><b>" + money(r.total) + "</b></td>";
+    el.appendChild(tr);
+  });
+}
+load();
+</script>
+</body>
+</html>

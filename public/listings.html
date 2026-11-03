@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · My listings</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings" class="active">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>My listings.</h1>
+        <p>Everything you've published to the station marketplace. Edit titles, prices and files here.</p></div>
+        <a class="btn btn-primary" href="/publish"><i data-ic="plus" data-size="15"></i> Publish new work</a>
+      </div>
+      <div class="panel">
+        <h2>Your marketplace listings</h2>
+        <div id="myList"><p class="hint">Nothing published yet.</p></div>
+      </div>
+      <div class="page-foot"><span>Your listings appear on the station marketplace as soon as you publish.</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  loadMine();
+}
+async function loadMine(){
+  const box = document.getElementById("myList");
+  const res = await fetch("/api/listings");
+  const mine = res.ok ? await res.json().catch(() => []) : [];
+  const asRes = await fetch("/api/assets");
+  const assets = asRes.ok ? await asRes.json().catch(() => []) : [];
+  const files = assets.filter(a => a.complete);
+  if (!mine.length) { box.innerHTML = "<p class='hint'>Nothing published yet.</p>"; return; }
+  box.innerHTML = "";
+  mine.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "brief";
+    const opts = "<option value=''>No file (demo preview)</option>" + files.map(a =>
+      "<option value='" + esc(a.id) + "'" + (a.id === c.asset ? " selected" : "") + ">" + esc(a.name) + "</option>").join("");
+    const pills = modPillFor(c.moderation, c.moderationFlags) + aiPillFor(c.moderationAi);
+    const unpub = c.unpublished ? "<span class='pill flag-gray'>UNPUBLISHED</span>" : "";
+    d.innerHTML = "<div class='micro'>" + esc(c.kindLabel || "") + " · " + esc(c.id) + "</div><h3>" + esc(c.title) + "</h3>" +
+      "<div class='brief-meta'><span>" + money(c.price) + " / " + esc(c.unit || "") + "</span><span>" + icon("pin", 12) + " " + esc(c.market || "") + "</span><span>" +
+      (c.assetName ? "File: " + esc(c.assetName) : "Demo preview") + "</span></div>" +
+      ((pills || unpub) ? "<div style='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap'>" + pills + unpub + "</div>" : "") +
+      "<div style='display:flex;gap:14px'><a href='#' class='editToggle' style='font-size:12.5px;font-weight:700'>Edit listing</a>" +
+      "<a href='#' class='visToggle' style='font-size:12.5px;font-weight:700'>" + (c.unpublished ? "Republish" : "Unpublish") + "</a></div>" +
+      "<div class='editBox' hidden>" +
+      "<div class='field' style='margin:10px 0'><label>Title</label><input class='et' value='" + esc(c.title) + "'></div>" +
+      "<div class='field' style='margin:10px 0'><label>Description</label><textarea class='eb'>" + esc(c.description || "") + "</textarea></div>" +
+      "<div class='two'><div class='field'><label>Market</label><input class='eMarket' value='" + esc(c.market || "") + "'></div>" +
+      "<div class='field'><label>Price (USD)</label><input class='ePrice' value='" + c.price + "'></div></div>" +
+      "<div class='field' style='margin:10px 0'><label>Recorded date</label><input class='eRecorded' type='date' value='" + esc(c.recorded || "") + "'></div>" +
+      "<div class='field' style='margin:10px 0'><label>Attached file</label><select class='eAsset'>" + opts + "</select></div>" +
+      "<p class='err eErr'></p><div style='display:flex;gap:10px'><button class='btn btn-primary saveEdit' style='width:auto'>Save changes</button><button class='btn btn-ghost cancelEdit' style='width:auto'>Cancel</button></div></div>";
+    d.querySelector(".editToggle").onclick = (e) => {
+      e.preventDefault();
+      const box2 = d.querySelector(".editBox");
+      box2.hidden = !box2.hidden;
+    };
+    d.querySelector(".cancelEdit").onclick = () => { d.querySelector(".editBox").hidden = true; };
+    d.querySelector(".visToggle").onclick = async (e) => {
+      e.preventDefault();
+      const action = c.unpublished ? "republish" : "unpublish";
+      if (!c.unpublished && !confirm("Unpublish '" + c.title + "'? Stations won't see it until you republish.")) return;
+      const r2 = await fetch("/api/content/" + c.id + "/" + action, { method: "POST" });
+      if (!r2.ok) { const e2 = await r2.json().catch(() => ({})); alert(e2.error || "Couldn't change that listing."); return; }
+      loadMine();
+    };
+    d.querySelector(".saveEdit").onclick = async () => {
+      const errBox = d.querySelector(".eErr");
+      errBox.textContent = "";
+      const r2 = await fetch("/api/content/" + c.id, { method: "PUT", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ title: d.querySelector(".et").value, description: d.querySelector(".eb").value,
+          market: d.querySelector(".eMarket").value, price: d.querySelector(".ePrice").value,
+          recorded: d.querySelector(".eRecorded").value,
+          assetId: d.querySelector(".eAsset").value }) });
+      if (!r2.ok) { const e2 = await r2.json().catch(() => ({})); errBox.textContent = e2.error || "Couldn't save those changes."; return; }
+      loadMine();
+    };
+    box.appendChild(d);
+  });
+}
+load();
+</script>
+</body>
+</html>

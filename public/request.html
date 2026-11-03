@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Request coverage</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom</div>
+      <a href="/discover">◉ Discover</a>
+      <a href="/bookings">((·)) My bookings</a>
+      <a href="/expenses">$ Expense report</a>
+      <a href="/requests">▤ Coverage requests</a>
+      <a href="/request" class="active">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION ⌄</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="crumb">← <a href="/requests">Coverage requests</a> / New request</div>
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Commission original content</div>
+        <h1>What would you like to make?</h1>
+        <p>Brief verified Contributors for news, television, podcasts or a live production.</p></div>
+        <button class="btn btn-ghost" id="draftBtn"><i data-ic="save" data-size="15"></i> Save draft</button>
+      </div>
+      <div id="done"></div>
+      <div class="req-grid">
+        <div>
+          <div class="panel">
+            <h2>Content type</h2>
+            <p class="hint">Your choice determines delivery requirements and matching professional roles.</p>
+            <div class="opt-row chips" id="ctype"></div>
+            <div class="field"><label>Request title *</label><input id="rTitle" placeholder="e.g. Ferry routes: commuter voices"></div>
+            <div class="field"><label>Production brief *</label><textarea id="rBrief" placeholder="Shots, interviews, story points, verification needs…"></textarea></div>
+          </div>
+          <div class="panel">
+            <h2>Deliverables &amp; production roles</h2>
+            <div class="two" style="margin-top:12px">
+              <div class="field"><label>Primary deliverable *</label><input id="rDeliv" placeholder="e.g. Finished news package · 01:30"></div>
+              <div class="field"><label>Language *</label><select id="rLang"><option>English</option><option>Spanish</option><option>English · Spanish interviews subtitled</option></select></div>
+            </div>
+            <div class="opt-row chips" id="assets" style="margin-top:12px"></div>
+            <div class="field" style="margin-top:12px"><label>Required professional roles *</label><div class="opt-row chips" id="roles"></div></div>
+            <div class="callout"><i data-ic="info" data-size="14"></i> One verified Contributor may fill multiple roles. Engineering tools remain restricted to verified Broadcast engineers.</div>
+          </div>
+          <div class="panel">
+            <h2>Schedule &amp; location</h2>
+            <div class="two" style="margin-top:12px">
+              <div class="field"><label>Work arrangement *</label><div class="opt-row chips" id="arr"></div></div>
+              <div class="field"><label>Location *</label><input id="rLoc" placeholder="City, ST"></div>
+              <div class="field"><label>Coverage starts *</label><input id="rStart" type="date"></div>
+              <div class="field"><label>Final delivery deadline *</label><input id="rDue" type="date"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>Budget &amp; requested rights</h2>
+            <div class="two" style="margin-top:12px">
+              <div class="field"><label>Budget (USD) *</label><input id="rBudget" placeholder="$350 · Fixed total fee"></div>
+              <div class="field"><label>Requested exclusivity *</label><select id="rExcl"><option>Non-exclusive</option><option>Exclusive 7 days</option><option>Exclusive 30 days</option></select>
+              <div class="field"><label>Territory *</label><select id="rTerr"><option>United States</option><option>United States + Canada</option><option>Worldwide</option></select></div>
+              <div class="field"><label>Rights window *</label><input id="rWindow" placeholder="30 days from delivery"></div>
+            </div>
+            <div class="opt-row chips" id="rights" style="margin-top:12px"></div>
+            <p class="hint">Editorial use only. No resale, advertising or archive reuse. Requested rights are confirmed with the selected Contributor before work starts.</p>
+          </div>
+          <div class="panel">
+            <h2>Brief attachments</h2>
+            <div id="attachList"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><p class="hint" style="margin:0">PDF, JPG or PNG · Up to 5 MB each · Do not include passwords.</p><button class="btn btn-ghost" type="button" id="attachBtn"><i data-ic="paperclip" data-size="15"></i> Add attachment</button></div>
+            <input type="file" id="attachFile" accept=".pdf,.jpg,.jpeg,.png" hidden>
+          </div>
+        </div>
+        <div>
+          <div class="panel review">
+            <h2>Review your request</h2>
+            <div style="margin-top:8px"><span class="badge amber" style="position:static" id="draftState">DRAFT · NOT SENT</span></div>
+            <div class="review-title" id="vTitle">Untitled request</div>
+            <div class="kv"><span>Content</span><b id="vType">News coverage</b></div>
+            <div class="kv"><span>Deliverable</span><b id="vDeliv">—</b></div>
+            <div class="kv"><span>Location</span><b id="vLoc">—</b></div>
+            <div class="kv"><span>Due</span><b id="vDue">—</b></div>
+            <div class="review-roles" id="vRoles"></div>
+            <div class="review-budget"><span style="color:var(--muted);font-size:13px">Budget · USD</span><b id="vBudget">$0.00</b></div>
+            <p class="fine" id="vRights">United States · Non-exclusive.</p>
+            <ul class="checks" id="vChecks"></ul>
+            <p class="err" id="submitErr"></p>
+            <button class="btn btn-primary" id="submitBtn"><i data-ic="send" data-size="15"></i> Submit request</button>
+            <p class="fine">Sends to matching verified Contributors. No charge now. Review applications and agree final terms before assigning the work.</p>
+            <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="location.href='/requests'">Cancel &amp; return to requests</button>
+          </div>
+          <div class="next-card">
+            <h3>What happens next?</h3>
+            <h4>01 / Contributors apply</h4>
+            <p>Your brief is visible to relevant verified professionals, not the public marketplace.</p>
+            <hr><h4>02 / Review &amp; assign</h4>
+            <p>Compare experience and availability. Confirm scope, rights and payment before production begins.</p>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>© 2026 Relay Network · All amounts in USD</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+let meEmail = "";
+const attachments = [];
+function chipRow(el, items, sel, multi){
+  const box = document.getElementById(el);
+  function draw(){
+    box.innerHTML = "";
+    items.forEach(t => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip";
+      b.setAttribute("aria-pressed", sel.has(t) ? "true" : "false");
+      b.innerHTML = "<span class='ring'></span>" + esc(t);
+      b.onclick = () => { if (multi) { sel.has(t) ? sel.delete(t) : sel.add(t); } else { sel.clear(); sel.add(t); } draw(); sync(); };
+      box.appendChild(b);
+    });
+  }
+  draw();
+}
+const ctype = new Set(["News coverage"]);
+const assets = new Set();
+const roles = new Set();
+const arr = new Set(["On location"]);
+const rights = new Set(["Linear TV"]);
+chipRow("ctype", ["News coverage","TV-show production","Podcast production","Live event"], ctype, false);
+chipRow("assets", ["Broadcast master","Clean version","Script / transcript","Captions","Raw footage"], assets, true);
+chipRow("roles", ["Reporter","Producer","Editor","Camera operator","Anchor","Photographer","Graphic designer","Motion designer","Broadcast engineer"], roles, true);
+chipRow("arr", ["On location","Remote","Hybrid"], arr, false);
+chipRow("rights", ["Linear TV","Simultaneous web","VOD","Social clips"], rights, true);
+function draftKey(){ return "relay_draft_" + meEmail; }
+function collect(){
+  return { title: document.getElementById("rTitle").value, brief: document.getElementById("rBrief").value,
+    type: [...ctype][0], deliverable: document.getElementById("rDeliv").value,
+    language: document.getElementById("rLang").value, assets: [...assets], roles: [...roles],
+    arrangement: [...arr][0], location: document.getElementById("rLoc").value,
+    starts: document.getElementById("rStart").value, due: document.getElementById("rDue").value,
+    budget: document.getElementById("rBudget").value, exclusivity: document.getElementById("rExcl").value,
+    territory: document.getElementById("rTerr").value, rightsWindow: document.getElementById("rWindow").value, rights: [...rights] };
+}
+function restore(d){
+  if (!d) return;
+  const set = (id, v) => { if (v) document.getElementById(id).value = v; };
+  set("rTitle", d.title); set("rBrief", d.brief); set("rDeliv", d.deliverable); set("rLoc", d.location);
+  set("rStart", d.starts); set("rDue", d.due); set("rBudget", d.budget); set("rWindow", d.rightsWindow);
+  if (d.type) { ctype.clear(); ctype.add(d.type); }
+  const sets = { assets: assets, roles: roles, rights: rights };
+  Object.keys(sets).forEach(k => { if (Array.isArray(d[k])) { sets[k].clear(); d[k].forEach(x => sets[k].add(x)); } });
+  if (d.arrangement) { arr.clear(); arr.add(d.arrangement); }
+  ["ctype","assets","roles","arr","rights"].forEach(id => document.getElementById(id).innerHTML = "");
+  chipRow("ctype", ["News coverage","TV-show production","Podcast production","Live event"], ctype, false);
+  chipRow("assets", ["Broadcast master","Clean version","Script / transcript","Captions","Raw footage"], assets, true);
+  chipRow("roles", ["Reporter","Producer","Editor","Camera operator","Anchor","Photographer","Graphic designer","Motion designer","Broadcast engineer"], roles, true);
+  chipRow("arr", ["On location","Remote","Hybrid"], arr, false);
+  chipRow("rights", ["Linear TV","Simultaneous web","VOD","Social clips"], rights, true);
+}
+function sync(){
+  const d = collect();
+  document.getElementById("vTitle").textContent = d.title || "Untitled request";
+  document.getElementById("vType").textContent = d.type;
+  document.getElementById("vDeliv").textContent = d.deliverable || "—";
+  document.getElementById("vLoc").textContent = (d.location || "—") + " · " + d.arrangement;
+  document.getElementById("vDue").textContent = d.due || "—";
+  document.getElementById("vRoles").textContent = ([...roles].join(" + ") || "No roles picked") + (assets.size ? " · " + [...assets].join(", ") + "." : ".");
+  const m = (d.budget || "").match(/\$[\d,.]+/);
+  document.getElementById("vBudget").textContent = m ? m[0] : "$0.00";
+  document.getElementById("vRights").textContent = d.territory + " · " + (d.rightsWindow || "window TBD") + " · " + d.exclusivity + " · " + [...rights].join(" + ") + ".";
+  const checks = [
+    [!!(d.title && d.brief), "Title and brief written"],
+    [roles.size > 0, "Professional roles selected (" + roles.size + ")"],
+    [!!(d.starts && d.due), "Schedule set"],
+    [true, attachments.length + " brief attachment" + (attachments.length === 1 ? "" : "s")]
+  ];
+  document.getElementById("vChecks").innerHTML = checks.map(([ok, label]) =>
+    ok ? "<li>" + esc(label) + "</li>" : "<li style='opacity:.45'>" + esc(label) + " — missing</li>"
+  ).join("");
+}
+["rTitle","rBrief","rDeliv","rLoc","rStart","rDue","rBudget","rWindow"].forEach(id => document.getElementById(id).oninput = sync);
+["rLang","rExcl","rTerr"].forEach(id => document.getElementById(id).onchange = sync);
+function renderAttachments(){
+  const el = document.getElementById("attachList");
+  el.innerHTML = "";
+  attachments.forEach(a => {
+    const d = document.createElement("div");
+    d.className = "attach-row";
+    d.innerHTML = "<span>" + icon("file", 13) + " " + esc(a.name) + " · " + (a.size / 1024).toFixed(1) + " KB</span><span class='tag-up'>UPLOADED</span>";
+    el.appendChild(d);
+  });
+  sync();
+}
+document.getElementById("attachBtn").onclick = () => document.getElementById("attachFile").click();
+document.getElementById("attachFile").onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > 5 * 1024 * 1024) { alert("Files must be 5 MB or smaller."); return; }
+  const buf = await f.arrayBuffer();
+  let bin = "";
+  new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
+  const r = await fetch("/api/uploads", { method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ name: f.name, data: btoa(bin) }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(saved.error || "Upload failed."); return; }
+  attachments.push(saved);
+  renderAttachments();
+  e.target.value = "";
+};
+document.getElementById("draftBtn").onclick = () => {
+  localStorage.setItem(draftKey(), JSON.stringify(collect()));
+  document.getElementById("draftState").textContent = "DRAFT SAVED · " + estNowStamp();
+};
+document.getElementById("submitBtn").onclick = async () => {
+  const err = document.getElementById("submitErr");
+  err.textContent = "";
+  const d = collect();
+  if (!d.title.trim() || !d.brief.trim()) { err.textContent = "Request title and production brief are required."; return; }
+  if (!roles.size) { err.textContent = "Pick at least one professional role."; return; }
+  const body = Object.assign({}, d, { attachments: attachments.map(a => a.id) });
+  const r = await fetch("/api/requests", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  if (r.status === 401) { location.href = "/login?next=" + encodeURIComponent("/request"); return; }
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't send that request."; return; }
+  localStorage.removeItem(draftKey());
+  document.getElementById("done").innerHTML = "<div class='success'><h2>Request " + esc(saved.id) + " sent to matching Contributors.</h2><p>No charge now — <a href='/requests'>track it under Coverage requests →</a></p></div>";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+guard("station").then(u => {
+  if (!u) return;
+  topUser(u); notifBell(); tickClock(); tzLine("tzline");
+  meEmail = u.email;
+  try { restore(JSON.parse(localStorage.getItem(draftKey()) || "null")); } catch (e) {}
+  const q = new URLSearchParams(location.search);
+  if (q.get("title")) document.getElementById("rTitle").value = q.get("title");
+  if (q.get("brief")) document.getElementById("rBrief").value = q.get("brief");
+  if (q.get("due")) document.getElementById("rDue").value = q.get("due");
+  if (q.get("budget")) document.getElementById("rBudget").value = q.get("budget");
+  sync();
+});
+</script>
+</body>
+</html>

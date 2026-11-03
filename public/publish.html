@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Publish work</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish" class="active">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>Publish finished work.</h1>
+        <p>List a package, show, podcast episode or IRL live service on the station marketplace.</p></div>
+      </div>
+      <div class="panel">
+        <h2>New listing</h2>
+        <div class="two">
+          <div class="field"><label>Kind *</label><select id="pKind"><option value="package">Package</option><option value="show">TV show</option><option value="podcast">Podcast</option><option value="irl">IRL live</option><option value="raw">Raw footage</option></select></div>
+          <div class="field"><label>Title *</label><input id="pTitle" placeholder="e.g. Harbor at dawn"></div>
+          <div class="field"><label>Market *</label><input id="pMarket" placeholder="City, ST"></div>
+          <div class="field"><label>Price (USD) *</label><input id="pPrice" type="number" min="1" step="0.01" placeholder="120"></div>
+        </div>
+        <div class="field" style="margin-top:12px"><label>Description *</label><textarea id="pDesc" placeholder="Runtime, format, what's included…"></textarea></div>
+        <div class="field" style="margin-top:12px"><label>Recorded date (when the footage was captured)</label><input id="pRecorded" type="date" style="max-width:220px"></div>
+        <div class="field" style="margin-top:12px"><label>Video / audio file</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="pFile" accept="video/*,audio/*,.mkv,.mov">
+            <button class="btn btn-ghost" style="width:auto" id="upBtn" type="button"><i data-ic="upload" data-size="15"></i> Upload file</button>
+          </div>
+          <p class="hint" style="margin:6px 0 0">MP4, WebM, MOV, MKV or MP3/WAV/M4A · up to 2 GB · uploaded in 1&nbsp;MB chunks with a progress bar. Your file becomes the marketplace preview and the licensed download.</p>
+          <progress id="upProg" value="0" max="100" style="width:100%;margin-top:8px" hidden></progress>
+          <p class="hint" id="upStatus" style="margin:6px 0 0"></p>
+        </div>
+        <p class="err" id="pubErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-primary" style="width:auto" id="pubBtn"><i data-ic="plus" data-size="15"></i> Publish to marketplace</button></div>
+      </div>
+      <div class="page-foot"><span>Your listings appear on the station marketplace as soon as you publish. <a href="/listings">View them here →</a></span><span class="clocks" id="rolesLine"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+let assetId = "", assetName = "";
+function b64(buf){
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fmtSize(n){
+  if (n >= 1073741824) return (n / 1073741824).toFixed(1) + " GB";
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+  return Math.max(1, Math.round(n / 1024)) + " KB";
+}
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock();
+  document.getElementById("rolesLine").textContent = u.roles.join(" · ") || "No verified roles yet";
+}
+document.getElementById("upBtn").onclick = async () => {
+  const err = document.getElementById("pubErr");
+  const status = document.getElementById("upStatus");
+  const prog = document.getElementById("upProg");
+  err.textContent = "";
+  const file = document.getElementById("pFile").files[0];
+  if (!file) { err.textContent = "Choose a video or audio file first."; return; }
+  document.getElementById("upBtn").disabled = true;
+  prog.hidden = false; prog.value = 0;
+  try {
+    let r = await fetch("/api/assets", { method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ name: file.name, size: file.size }) });
+    let session = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(session.error || "Upload couldn't start.");
+    const size = session.chunkSize || 1048576;
+    let index = 0;
+    for (let off = 0; off < file.size; off += size, index++) {
+      status.textContent = "Uploading " + file.name + " · " + Math.round(off / file.size * 100) + "%";
+      const buf = await file.slice(off, off + size).arrayBuffer();
+      r = await fetch("/api/assets/" + session.id + "/chunk", { method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ index: index, data: b64(buf) }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || "Chunk upload failed."); }
+      prog.value = Math.round(Math.min(file.size, off + size) / file.size * 100);
+    }
+    r = await fetch("/api/assets/" + session.id + "/complete", { method: "POST" });
+    const done = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(done.error || "Couldn't finish the upload.");
+    assetId = done.id; assetName = done.name;
+    status.innerHTML = icon("check", 13) + " Attached: " + esc(assetName) + " (" + fmtSize(done.size) + ") — it will publish with your listing.";
+    prog.value = 100;
+  } catch (e) {
+    err.textContent = e.message;
+    assetId = "";
+  } finally {
+    document.getElementById("upBtn").disabled = false;
+  }
+};
+document.getElementById("pFile").onchange = () => { assetId = ""; document.getElementById("upStatus").textContent = ""; document.getElementById("upProg").hidden = true; };
+document.getElementById("pubBtn").onclick = async () => {
+  const err = document.getElementById("pubErr");
+  err.textContent = "";
+  const body = { kind: document.getElementById("pKind").value, title: document.getElementById("pTitle").value,
+    market: document.getElementById("pMarket").value, price: document.getElementById("pPrice").value,
+    description: document.getElementById("pDesc").value, assetId: assetId,
+    recorded: document.getElementById("pRecorded").value };
+  const r = await fetch("/api/content", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't publish that work."; return; }
+  document.getElementById("pRecorded").value = "";
+  document.getElementById("pTitle").value = "";
+  document.getElementById("pMarket").value = "";
+  document.getElementById("pPrice").value = "";
+  document.getElementById("pDesc").value = "";
+  document.getElementById("pFile").value = "";
+  document.getElementById("upStatus").textContent = "";
+  document.getElementById("upProg").hidden = true;
+  assetId = "";
+  err.textContent = "";
+  alert("Published: " + saved.title + " is now on the station marketplace.");
+};
+load();
+</script>
+</body>
+</html>

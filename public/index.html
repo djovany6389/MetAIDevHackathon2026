@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join Relay · Role-based signup</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='13' width='3.4' height='8' rx='1.7' fill='%230d7a64'/%3E%3Crect x='7.4' y='8' width='3.4' height='13' rx='1.7' fill='%230d7a64'/%3E%3Crect x='12.8' y='3' width='3.4' height='18' rx='1.7' fill='%230d7a64'/%3E%3Crect x='18.2' y='9.5' width='3.4' height='11.5' rx='1.7' fill='%230d7a64'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="relay-wrap rauth">
+  <aside class="relay-side">
+    <div class="relay-logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="13" width="3.4" height="8" rx="1.7"/><rect x="7.4" y="8" width="3.4" height="13" rx="1.7"/><rect x="12.8" y="3" width="3.4" height="18" rx="1.7"/><rect x="18.2" y="9.5" width="3.4" height="11.5" rx="1.7"/></svg>relay</div>
+    <p class="relay-kicker">YOUR LOCAL BROADCAST NETWORK</p>
+    <p class="relay-hero">Independent.<br>Never alone.</p>
+    <p class="relay-body">From the first live shot to the final broadcast. Create, produce and distribute together — entirely in the cloud.</p>
+    <div class="relay-livecard">
+      <div class="top"><span class="livebadge"><span class="dot"></span>LIVE NETWORK</span><span class="where">U.S. LOCAL &amp; REGIONAL</span></div>
+      <h4>Local stories.<br>Regional reach.</h4>
+      <div class="rule"></div>
+      <div class="stats"><div><b>U.S.</b><span>local &amp; regional network</span></div><div><b>24/7</b><span>cloud production</span></div></div>
+    </div>
+    <p class="relay-foot">LOCAL STORIES. CONNECTED STATIONS. RELAY.</p>
+  </aside>
+  <main class="relay-main"><div class="inner">
+    <div class="relay-toprow"><span>STEP 01 / 02 · YOUR PROFILE</span><span>Already on Relay? <button id="go-login" type="button">Sign in →</button></span></div>
+    <h1>Find your place on the network.</h1>
+    <p class="sub" id="formSub">Join the U.S. network for local TV, regional stations and independent creators.</p>
+    <div class="autherr" id="signupErr"></div>
+    <div class="acct-grid" id="roles">
+      <div class="acct-card" data-role="station">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="1.6"/><path d="M12 13v8M8.5 21h7M8.6 7.6a5 5 0 0 0 0 6.8M15.4 7.6a5 5 0 0 1 0 6.8M6 5a9.5 9.5 0 0 0 0 12M18 5a9.5 9.5 0 0 1 0 12"/></svg>
+        <span class="radio"></span><h4>Station</h4><p>Discover and license live feeds, TV shows and podcasts.</p>
+      </div>
+      <div class="acct-card selected" data-role="contributor">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="18" height="10" rx="1.5"/><path d="M3.5 10L5.5 4.5 20 7.5 18.5 10.5"/><path d="M9 5.4L8.2 10M13.5 6.2L12.7 10.7M18 7L17.2 11.5"/></svg>
+        <span class="radio"></span><h4>Contributor</h4><p>Create, collaborate and publish news, TV shows and podcasts.</p>
+      </div>
+      <div class="acct-card" data-role="partner">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="11" height="6" rx="3"/><path d="M13.5 10.5L21 7.5v7l-7.5-2.5"/><path d="M8 14v3.5M5.5 17.5h5"/></svg>
+        <span class="radio"></span><h4>Partner</h4><p>Own property cameras. Earn only when feeds are used.</p>
+      </div>
+    </div>
+    <div id="profBlock">
+      <div class="roles-head"><h4>What do you do?</h4><span>Select all professional roles that apply</span></div>
+      <div class="pills" id="profPills"></div>
+      <p class="roles-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Your verified roles determine assignment access and production tools. You can update your specialties in your profile.</span></p>
+    </div>
+    <hr class="relay-div">
+    <form id="signupForm">
+      <div class="fgrid">
+        <label class="fld" id="orgWrap"><span id="orgLabel">Station name *</span><input id="fOrg" placeholder="e.g. Metroline TV" autocomplete="organization"></label>
+        <label class="fld"><span id="nameLabel">Full name</span><input id="fName" required placeholder="Jordan Lee" autocomplete="name"></label>
+        <label class="fld">Work email<input id="fEmail" type="email" required placeholder="you@station.tv" autocomplete="email"></label>
+        <label class="fld"><span id="baseLabel">Based in</span><input id="fBase" placeholder="City, ST, United States"></label>
+        <label class="fld">Password (8+ characters)
+          <span class="with-icon"><input id="fPass" type="password" required minlength="8" placeholder="Choose a password" autocomplete="new-password">
+          <button type="button" class="trail" id="pwToggle" aria-label="show password"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10 6.2A16 16 0 0 1 21 10.5S18 15 12 15c-1 0-2-.2-2.8-.6"/><path d="M6.6 6.6A15.6 15.6 0 0 0 3 10.5S6 15 12 15"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button></span>
+        </label>
+        <label class="fld" id="specWrap">Coverage specialties<input id="fSpec" placeholder="Beats or topics you cover"></label>
+        <label class="fld" id="langWrap">Working languages
+          <select id="fLang"><option>English, Spanish</option><option>English</option><option>English, French</option><option>Spanish, Portuguese</option></select>
+        </label>
+      </div>
+      <label class="terms"><input type="checkbox" required checked><span>I agree to the Terms of Service, Editorial Standards and Privacy Policy.</span></label>
+      <button class="relay-submit" type="submit" id="submitBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M13 5l7 7-7 7"/></svg><span id="suBtnLabel">Create Contributor account</span></button>
+    </form>
+    <p class="relay-caption">Next: verify your identity and professional experience. No payment required.</p>
+    <div class="relay-footer"><span>© 2026 Relay Network</span><span>English (US)</span></div>
+  </div></main>
+</div>
+<script>
+const HOMES = { station: "/discover", contributor: "/contributor", partner: "/partner" };
+fetch("/api/me").then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
+  if (u) location.href = HOMES[u.role];
+});
+document.getElementById("go-login").onclick = function () { location.href = "/login"; };
+const PROFS = ["Reporter","Producer","Editor","Anchor","Photographer","Camera operator","Graphic designer","Motion designer","Broadcast engineer"];
+const picked = new Set();
+let role = "contributor";
+const pillsEl = document.getElementById("profPills");
+function renderPills(){
+  pillsEl.innerHTML = "";
+  PROFS.forEach(p => {
+    const s = document.createElement("span");
+    s.className = "pill" + (picked.has(p) ? " on" : "");
+    s.innerHTML = "<span class='pcircle'></span>" + p;
+    s.onclick = () => { picked.has(p) ? picked.delete(p) : picked.add(p); renderPills(); };
+    pillsEl.appendChild(s);
+  });
+}
+renderPills();
+const LABELS = { station: "Station", contributor: "Contributor", partner: "Partner" };
+const ROLE_FORM = {
+  station: { sub: "License live feeds, shows and podcasts for your market, and commission original coverage.",
+    org: ["Station name *", "e.g. Metroline TV"], name: "Your name",
+    base: ["Market", "e.g. New York DMA"], email: "you@station.tv",
+    showOrg: true, showSpec: false, showLang: false, showRoles: false },
+  contributor: { sub: "Get hired for coverage, publish finished work, and sell to stations across the U.S.",
+    org: null, name: "Full name",
+    base: ["Based in", "City, ST, United States"], email: "you@yourwork.com",
+    showOrg: false, showSpec: true, showLang: true, showRoles: true },
+  partner: { sub: "Register cameras on your property and earn every time a station licenses them.",
+    org: ["Property / business name *", "e.g. Harborview Hotel"], name: "Your name",
+    base: ["Property location", "City, ST, United States"], email: "you@business.com",
+    showOrg: true, showSpec: false, showLang: false, showRoles: false },
+};
+function applyRole(){
+  const f = ROLE_FORM[role];
+  document.getElementById("profBlock").style.display = f.showRoles ? "" : "none";
+  document.getElementById("suBtnLabel").textContent = "Create " + LABELS[role] + " account";
+  document.getElementById("formSub").textContent = f.sub;
+  document.getElementById("orgWrap").style.display = f.showOrg ? "" : "none";
+  document.getElementById("fOrg").required = f.showOrg;
+  if (f.org) {
+    document.getElementById("orgLabel").textContent = f.org[0];
+    document.getElementById("fOrg").placeholder = f.org[1];
+  }
+  document.getElementById("nameLabel").textContent = f.name;
+  document.getElementById("baseLabel").textContent = f.base[0];
+  document.getElementById("fBase").placeholder = f.base[1];
+  document.getElementById("fEmail").placeholder = f.email;
+  document.getElementById("specWrap").style.display = f.showSpec ? "" : "none";
+  document.getElementById("langWrap").style.display = f.showLang ? "" : "none";
+}
+document.querySelectorAll(".acct-card").forEach(card => {
+  card.onclick = () => {
+    document.querySelectorAll(".acct-card").forEach(c => c.classList.remove("selected"));
+    card.classList.add("selected");
+    role = card.dataset.role;
+    applyRole();
+  };
+});
+applyRole();
+document.getElementById("pwToggle").onclick = function () {
+  const inp = document.getElementById("fPass");
+  const show = inp.type === "password";
+  inp.type = show ? "text" : "password";
+  this.setAttribute("aria-label", show ? "hide password" : "show password");
+};
+function showErr(msg){
+  const err = document.getElementById("signupErr");
+  err.textContent = msg;
+  err.classList.toggle("show", !!msg);
+}
+document.getElementById("signupForm").onsubmit = async (e) => {
+  e.preventDefault();
+  showErr("");
+  const body = { role, roles: [...picked],
+    name: document.getElementById("fName").value, email: document.getElementById("fEmail").value,
+    password: document.getElementById("fPass").value,
+    org: document.getElementById("fOrg").value,
+    based: document.getElementById("fBase").value, specialties: document.getElementById("fSpec").value,
+    languages: document.getElementById("fLang").value };
+  const r = await fetch("/api/signup", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { showErr(data.error || "Couldn't create that account."); return; }
+  location.href = HOMES[data.role || role];
+};
+</script>
+</body>
+</html>

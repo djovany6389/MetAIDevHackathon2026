@@ -1,0 +1,71 @@
+[
+ {
+  "email": "station@metroline.tv",
+  "name": "Metroline TV",
+  "role": "station",
+  "org": "Metroline TV",
+  "pass": {
+   "salt": "30bee24759bb1ced23ace6d6d16ce86e",
+   "hash": "e2a9c7d42da476ae2405aee59c94888cdc7826c78d97ae50fd6f023a46f4aab5"
+  },
+  "created": "2026-10-29T02:06:15.722114+00:00"
+ },
+ {
+  "email": "maya@mayachen.media",
+  "name": "Maya Chen",
+  "role": "contributor",
+  "roles": [
+   "Reporter",
+   "Editor",
+   "Camera operator"
+  ],
+  "pass": {
+   "salt": "bb61138433cbe791b29abce33b88cb2b",
+   "hash": "62320f20bf5016dca5b9c400c54fba0abee35f5fe81477ea10959127d463fbc3"
+  },
+  "created": "2026-10-29T02:06:15.766767+00:00"
+ },
+ {
+  "email": "owner@harborview.hotel",
+  "name": "Harborview Hotel",
+  "role": "partner",
+  "org": "Harborview Hotel",
+  "pass": {
+   "salt": "13bff9fcb5e2652c43303b4d640cfdbe",
+   "hash": "2ad87ac67aa098ee12ba8d7936a0ec10714898e3da04a26b261f03b22e07b748"
+  },
+  "created": "2026-10-29T02:06:15.811319+00:00"
+ },
+ {
+  "email": "fresh@station.tv",
+  "name": "Fresh Station",
+  "role": "station",
+  "roles": [],
+  "org": "Fresh Station",
+  "based": "",
+  "specialties": "",
+  "languages": "",
+  "pass": {
+   "salt": "f16350b14d4a05b5ae5f8547f98a4eac",
+   "hash": "5854b0e2f277f3b70e97206f3adedfef013c313592ebee3609b41328270aa274"
+  },
+  "created": "2026-10-29T02:11:08.272232+00:00"
+ },
+ {
+  "email": "productiondjovany@gmail.com",
+  "name": "Diovany Deus",
+  "role": "contributor",
+  "roles": [
+   "Producer"
+  ],
+  "org": "",
+  "based": "Orlando, FL",
+  "specialties": "Sports",
+  "languages": "English, French",
+  "pass": {
+   "salt": "3e9bcdf3382b08d5aed26458a929b8a8",
+   "hash": "e3c06f2e6e3bc7ac0fdd39c91ffa2f6f7c53b2599cdb4e56faa26399391e31ae"
+  },
+  "created": "2026-10-30T01:18:06.242629+00:00"
+ }
+]

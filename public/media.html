@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Media library</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media" class="active">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>Media library.</h1>
+        <p>Every file you've uploaded. Attach them to listings or assignment deliveries.</p></div>
+        <a class="btn btn-primary" href="/publish"><i data-ic="plus" data-size="15"></i> Upload &amp; publish</a>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><b id="stFiles">–</b><span>files</span></div>
+        <div class="stat"><b id="stSize">–</b><span>stored</span></div>
+        <div class="stat"><b id="stUsed">–</b><span>used in listings</span></div>
+      </div>
+      <div class="panel">
+        <p class="hint">Generate closed captions per file — videos also caption themselves the first time anyone plays them. Transcription bills per audio hour; video files need ffmpeg on the server.</p>
+        <div id="folderBar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px"></div>
+        <table class="table"><thead><tr><th>File</th><th>Size / uploaded</th><th>Used in</th><th style="text-align:right">Preview</th></tr></thead><tbody id="rows"></tbody></table>
+      </div>
+      <div class="page-foot"><span>Files are stored on the Relay server.</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+function fmtSize(n){
+  if (n >= 1073741824) return (n / 1073741824).toFixed(1) + " GB";
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + " MB";
+  return Math.max(1, Math.round(n / 1024)) + " KB";
+}
+function pollCc(aid) {
+  const tick = async () => {
+    const el = document.getElementById("cc-" + aid);
+    if (!el) return;
+    let body = {};
+    try {
+      const r = await fetch("/api/assets/" + encodeURIComponent(aid) + "/captions");
+      body = r.ok ? await r.json() : {};
+    } catch (e) { return; }
+    if (body.status === "ready") {
+      el.outerHTML = "<span class='pill p-lic'>CC READY</span>";
+    } else if (body.status === "error") {
+      el.textContent = (body.error || "Captioning failed.") + " ";
+      const retry = document.createElement("button");
+      retry.className = "btn btn-ghost";
+      retry.style.cssText = "width:auto;padding:4px 10px;font-size:12px";
+      retry.textContent = "Retry";
+      retry.onclick = async () => {
+        await fetch("/api/assets/" + encodeURIComponent(aid) + "/captions", { method: "POST" });
+        el.textContent = "Captioning…";
+        setTimeout(tick, 4000);
+      };
+      el.appendChild(retry);
+    } else if (body.status === "pending") {
+      setTimeout(tick, 4000);
+    }
+  };
+  setTimeout(tick, 4000);
+}
+function ccCell(r) {
+  const st = r.captions || "none";
+  if (st === "ready") return "<br><span class='pill p-lic'>CC READY</span>";
+  if (st === "pending") return "<br><span class='micro' id='cc-" + r.id + "'>Captioning…</span>";
+  const note = st === "error" ? " Last run failed — retry below." : "";
+  return "<br><button class='btn btn-ghost ccbtn' style='width:auto;padding:4px 10px;font-size:12px' data-aid='" + r.id + "'>Generate captions</button><br><span class='micro' id='cc-" + r.id + "'>" + esc(note) + "</span>";
+}
+function aiBadgeFor(ai) {
+  ai = ai || {};
+  const label = ai.label || (ai.verdict === "ai" ? "POSSIBLY AI-MADE" : null);
+  if (!label) return "";
+  const cls = (ai.tone || "red") === "amber" ? "flag-amber" : "p-live";
+  return "<br><span class='pill " + cls + "'>" + icon("info", 11) + " " + esc(label) + "</span>";
+}
+function pollMod(aid) {
+  const tick = async () => {
+    const el = document.getElementById("mod-" + aid);
+    if (!el) return;
+    let body = {};
+    try {
+      const r = await fetch("/api/assets/" + encodeURIComponent(aid) + "/moderation");
+      body = r.ok ? await r.json() : {};
+    } catch (e) { return; }
+    const aiBadge = aiBadgeFor(body.ai);
+    if (body.status === "clean") {
+      el.outerHTML = "<span class='pill p-lic'>" + icon("checkcircle", 11) + " CHECKED · CLEAN</span>" + aiBadge;
+    } else if (body.status === "flagged") {
+      const n = (body.flags || []).length;
+      el.outerHTML = "<span class='pill p-live'>" + icon("alert", 11) + " " + n + " SCENE" + (n === 1 ? "" : "S") + " BLURRED</span>" + aiBadge;
+    } else if (body.status === "error") {
+      el.textContent = body.error || "Scan failed.";
+    } else if (body.status === "pending") {
+      setTimeout(tick, 4000);
+    }
+  };
+  setTimeout(tick, 4000);
+}
+function modCell(r) {
+  if (!r.complete || (r.mime || "").indexOf("video") !== 0) return "";
+  const st = r.moderation || "none";
+  const aiBadge = aiBadgeFor(r.moderationAi);
+  if (st === "clean") return "<br><span class='pill p-lic'>" + icon("checkcircle", 11) + " CHECKED · CLEAN</span>" + aiBadge;
+  if (st === "flagged") return "<br><span class='pill p-live'>" + icon("alert", 11) + " FLAGGED · BLURRED</span>" + aiBadge;
+  if (st === "pending") return "<br><span class='micro' id='mod-" + r.id + "'>Scanning…</span>";
+  return "";
+}
+let curFolder = "all";
+let folderList = [];
+function renderBar(){
+  const bar = document.getElementById("folderBar");
+  const total = folderList.reduce((n, f) => n + (f.files || 0), 0);
+  let html = "<button class='btn " + (curFolder === "all" ? "btn-primary" : "btn-ghost") + " fchip' style='width:auto' data-f='all'>All files (" + total + ")</button>";
+  folderList.forEach(f => {
+    html += "<button class='btn " + (curFolder === f.id ? "btn-primary" : "btn-ghost") + " fchip' style='width:auto' data-f='" + f.id + "'>" + esc(f.name) + " (" + (f.files || 0) + ")</button>";
+  });
+  html += "<span style='display:inline-flex;gap:6px;margin-left:8px'><input id='newFolderName' placeholder='New folder…' style='max-width:150px'><button class='btn btn-ghost' style='width:auto' id='addFolder'>Add</button></span>";
+  const sel = folderList.find(f => f.id === curFolder);
+  if (sel && !sel.system) {
+    html += "<span style='display:inline-flex;gap:6px;margin-left:8px'><button class='btn btn-ghost' style='width:auto' id='renFolder'>Rename</button><button class='btn btn-ghost' style='width:auto' id='delFolder'>Delete folder</button></span>";
+  }
+  bar.innerHTML = html;
+  bar.querySelectorAll(".fchip").forEach(b => b.onclick = () => { curFolder = b.dataset.f; load(); });
+  bar.querySelector("#addFolder").onclick = async () => {
+    const name = bar.querySelector("#newFolderName").value.trim();
+    if (!name) return;
+    const r = await fetch("/api/folders", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ name }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.error || "Couldn't create that folder."); return; }
+    curFolder = body.id || "all";
+    load();
+  };
+  const ren = bar.querySelector("#renFolder");
+  if (ren) ren.onclick = async () => {
+    const name = prompt("Rename folder to:", sel.name);
+    if (!name || !name.trim() || name.trim() === sel.name) return;
+    const r = await fetch("/api/folders/" + sel.id, { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ name: name.trim() }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.error || "Couldn't rename that folder."); return; }
+    load();
+  };
+  const del = bar.querySelector("#delFolder");
+  if (del) del.onclick = async () => {
+    if (!confirm("Delete folder '" + sel.name + "'? Its " + (sel.files || 0) + " file(s) move back to Uploads.")) return;
+    const r = await fetch("/api/folders/" + sel.id, { method: "DELETE" });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.error || "Couldn't delete that folder."); return; }
+    curFolder = "all";
+    load();
+  };
+}
+async function load() {
+  const fRes = await fetch("/api/folders");
+  folderList = fRes.ok ? await fRes.json().catch(() => []) : [];
+  renderBar();
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  const res = await fetch("/api/assets");
+  const rows = res.ok ? await res.json().catch(() => []) : [];
+  const done = (Array.isArray(rows) ? rows : []).filter(r => r.complete);
+  document.getElementById("stFiles").textContent = done.length;
+  document.getElementById("stSize").textContent = fmtSize(done.reduce((n, r) => n + r.size, 0));
+  document.getElementById("stUsed").textContent = done.filter(r => r.listings.length).length;
+  const el = document.getElementById("rows");
+  el.innerHTML = "";
+  const shown = curFolder === "all" ? rows : rows.filter(r => (r.folder || "uploads") === curFolder);
+  if (!shown.length) {
+    el.innerHTML = "<tr><td colspan='4' style='color:var(--faint)'>" + (curFolder === "all" ? "No uploads yet. Publish your first listing with a file attached." : "No files in this folder yet.") + "</td></tr>";
+    return;
+  }
+  shown.forEach(r => {
+    const tr = document.createElement("tr");
+    let preview = "<span style='color:var(--faint)'>—</span>";
+    if (r.complete) {
+      preview = "";
+      if ((r.mime || "").indexOf("video") === 0) {
+        preview += "<video controls preload='none' onplay=\"attachRollup(this, '" + r.id + "')\" style='max-width:230px;width:100%' src='/assets/" + encodeURIComponent(r.id) + "'></video><br>";
+      }
+      preview += "<a href='/assets/" + encodeURIComponent(r.id) + "' target='_blank' rel='noopener'>Open " + icon("external", 12) + "</a>" + ccCell(r) + modCell(r);
+    }
+    preview += "<br><button class='btn btn-ghost delbtn' style='width:auto;padding:4px 10px;font-size:12px' data-aid='" + r.id + "' data-name='" + esc(r.name) + "'>Delete</button>";
+    const mvOpts = folderList.map(f => "<option value='" + f.id + "'" + ((r.folder || "uploads") === f.id ? " selected" : "") + ">" + esc(f.name) + "</option>").join("");
+    tr.innerHTML = "<td><b>" + esc(r.name) + "</b><br><span class='micro'>" + esc(r.complete ? r.mime : "Upload incomplete") + "</span><br><select class='mvsel' data-aid='" + r.id + "' style='max-width:170px;margin-top:6px'>" + mvOpts + "</select></td>" +
+      "<td>" + fmtSize(r.size) + "<br><span class='micro'>" + esc(estDate(r.created)) + "</span></td>" +
+      "<td>" + (r.listings.length ? esc(r.listings.join(", ")) : "<span style='color:var(--faint)'>—</span>") + "</td>" +
+      "<td style='text-align:right'>" + preview + "</td>";
+    el.appendChild(tr);
+  });
+  el.querySelectorAll(".ccbtn").forEach(b => b.onclick = async () => {
+    const aid = b.dataset.aid;
+    b.disabled = true;
+    const r = await fetch("/api/assets/" + encodeURIComponent(aid) + "/captions", { method: "POST" });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.error || "Couldn't start captioning."); b.disabled = false; return; }
+    b.remove();
+    const label = document.getElementById("cc-" + aid);
+    if (label) label.textContent = "Captioning…";
+    pollCc(aid);
+  });
+  rows.filter(r => (r.captions || "") === "pending").forEach(r => pollCc(r.id));
+  rows.filter(r => (r.moderation || "") === "pending").forEach(r => pollMod(r.id));
+  el.querySelectorAll(".delbtn").forEach(b => b.onclick = async () => {
+    if (!confirm("Delete '" + b.dataset.name + "' permanently? This cannot be undone.")) return;
+    const r = await fetch("/api/assets/" + encodeURIComponent(b.dataset.aid), { method: "DELETE" });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(body.error || "Couldn't delete that file."); return; }
+    load();
+  });
+  el.querySelectorAll(".mvsel").forEach(s => s.onchange = async () => {
+    const r = await fetch("/api/assets/" + encodeURIComponent(s.dataset.aid) + "/move", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ folder: s.value }) });
+    if (!r.ok) { const body = await r.json().catch(() => ({})); alert(body.error || "Couldn't move that file."); load(); return; }
+    load();
+  });
+}
+load();
+</script>
+</body>
+</html>

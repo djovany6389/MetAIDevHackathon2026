@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Coverage requests</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.brief-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.brief-top h3 { margin: 0; }
+.brief-top .pill { white-space: nowrap; }
+.app-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.dl-preview video, .dl-preview audio { width: 100%; border-radius: 10px; background: #000; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom</div>
+      <a href="/discover">◉ Discover</a>
+      <a href="/bookings">((·)) My bookings</a>
+      <a href="/expenses">$ Expense report</a>
+      <a href="/requests" class="active">▤ Coverage requests</a>
+      <a href="/request">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION ⌄</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="crumb">← <a href="/discover">Discover</a> / Coverage requests</div>
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Commission original content</div>
+        <h1>Coverage requests</h1>
+        <p>Everything you commissioned, in one place — review applications, follow production and answer pitches.</p></div>
+        <a class="btn btn-primary" href="/request"><i data-ic="plus" data-size="15"></i> Request coverage</a>
+      </div>
+      <div id="attn"></div>
+      <div class="panel" id="pitchPanel" hidden>
+        <h2>Incoming pitches</h2>
+        <p class="hint">Contributors pitching work directly to your station — accepting a pitch turns it into a brief in your sent requests.</p>
+        <div id="pitchList"></div>
+      </div>
+      <div class="panel" id="sentPanel" hidden>
+        <h2>Your sent requests</h2>
+        <p class="hint">Anything waiting on you floats to the top.</p>
+        <div id="sentList"></div>
+      </div>
+      <div id="emptyState"></div>
+      <div class="page-foot"><span>© 2026 Relay Network · All amounts in USD</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+let directory = [];
+let lastSent = [], lastPitches = [];
+const PILL = { open: ["p-up", "Accepting applications"], assigned: ["p-res", "In production"], submitted: ["p-live", "Ready for review"], completed: ["p-lic", "Completed"] };
+const PPILL = { pending: ["p-live", "Awaiting your answer"], accepted: ["p-lic", "Accepted"], declined: ["p-can", "Declined"] };
+function attnRank(r){
+  if (r.status === "submitted") return 0;
+  if (r.status === "open" && (r.applications || []).length) return 1;
+  if (r.status === "assigned" || r.feedback) return 2;
+  if (r.status === "open") return 3;
+  return 4;
+}
+function renderSummary(){
+  const box = document.getElementById("attn");
+  const submitted = lastSent.filter(r => r.status === "submitted").length;
+  const withApps = lastSent.filter(r => r.status === "open" && (r.applications || []).length).length;
+  const pending = lastPitches.filter(p => p.status === "pending").length;
+  const bits = [];
+  if (submitted) bits.push(submitted + (submitted === 1 ? " delivery is" : " deliveries are") + " ready for your review");
+  if (withApps) bits.push(withApps + (withApps === 1 ? " brief has" : " briefs have") + " new applications");
+  if (pending) bits.push(pending + (pending === 1 ? " pitch is" : " pitches are") + " waiting for your answer");
+  if (!bits.length) {
+    box.innerHTML = (lastSent.length || lastPitches.length)
+      ? "<div class='callout'>" + icon("checkcircle", 14) + " All caught up — nothing needs your review right now.</div>"
+      : "";
+    return;
+  }
+  box.innerHTML = "<div class='callout'>" + icon("info", 14) + " Here's what needs you: " + esc(bits.join(" · ")) + ".</div>";
+}
+function deliveryFile(v, allowDownload){
+  if (!v || !v.assetId) return "";
+  const url = "/assets/" + encodeURIComponent(v.assetId);
+  const name = v.assetName || v.assetId;
+  const mime = v.assetMime || "";
+  const dl = allowDownload ? "<div style='margin:8px 0'><a class='btn btn-ghost' style='width:auto' href='" + url + "?download=1' download='" + esc(name) + "'>" + icon("download", 15) + " Download file</a></div>" : "";
+  if (mime.indexOf("video") === 0) return "<div class='dl-preview'><video controls preload='metadata' onplay=\"attachRollup(this, '" + v.assetId + "')\" src='" + url + "'></video></div><p class='fine'>" + esc(name) + "</p>" + dl;
+  if (mime.indexOf("audio") === 0) return "<div class='dl-preview'><audio controls preload='metadata' src='" + url + "'></audio></div><p class='fine'>" + esc(name) + "</p>" + dl;
+  return "<p style='font-size:13.5px;margin:8px 0'><a href='" + url + "' target='_blank' rel='noopener'>Open " + esc(name) + " ↗</a></p>" + dl;
+}
+async function loadSent(){
+  const res = await fetch("/api/requests");
+  const list = res.ok ? await res.json().catch(() => []) : [];
+  const panel = document.getElementById("sentPanel");
+  const el = document.getElementById("sentList");
+  lastSent = Array.isArray(list) ? list : [];
+  if (!lastSent.length) { panel.hidden = true; renderEmpty(); renderSummary(); return; }
+  panel.hidden = false;
+  el.innerHTML = "";
+  lastSent.slice().sort((a, b) => attnRank(a) - attnRank(b) || (b.created || "").localeCompare(a.created || "")).forEach(r => {
+    const d = document.createElement("div");
+    d.className = "brief";
+    const nApps = (r.applications || []).length;
+    const pill = (r.status === "open" && nApps)
+      ? ["p-live", nApps + (nApps === 1 ? " application" : " applications") + " to review"]
+      : (PILL[r.status] || PILL.open);
+    const selOpts = (opts, cur) => (cur && opts.indexOf(cur) < 0 ? [cur].concat(opts) : opts).map(o =>
+      "<option" + (o === cur ? " selected" : "") + ">" + esc(o) + "</option>").join("");
+    let apps = "<div><a href='#' class='editToggle' style='font-size:12.5px;font-weight:700'>Edit brief</a></div>" +
+      "<div class='editBox' hidden>" +
+      "<div class='field' style='margin:10px 0'><label>Title</label><input class='et' value='" + esc(r.title) + "'></div>" +
+      "<div class='field' style='margin:10px 0'><label>Description</label><textarea class='eb'>" + esc(r.brief || "") + "</textarea></div>" +
+      "<div class='two'>" +
+      "<div class='field'><label>Type</label><select class='eType'>" + selOpts(["News coverage", "TV-show production", "Podcast production", "Live event"], r.type) + "</select></div>" +
+      "<div class='field'><label>Deliverable</label><input class='eDeliv' value='" + esc(r.deliverable || "") + "'></div>" +
+      "<div class='field'><label>Language</label><select class='eLang'>" + selOpts(["English", "Spanish", "English · Spanish interviews subtitled"], r.language) + "</select></div>" +
+      "<div class='field'><label>Arrangement</label><select class='eArr'>" + selOpts(["On location", "Remote", "Hybrid"], r.arrangement) + "</select></div>" +
+      "<div class='field'><label>Location</label><input class='eLoc' value='" + esc(r.location || "") + "'></div>" +
+      "<div class='field'><label>Budget (USD)</label><input class='eBudget' value='" + esc(r.budget || "") + "'></div>" +
+      "<div class='field'><label>Coverage starts</label><input class='eStart' type='date' value='" + esc(r.starts || "") + "'></div>" +
+      "<div class='field'><label>Delivery deadline</label><input class='eDue' type='date' value='" + esc(r.due || "") + "'></div>" +
+      "<div class='field'><label>Exclusivity</label><select class='eExcl'>" + selOpts(["Non-exclusive", "Exclusive 7 days", "Exclusive 30 days"], r.exclusivity) + "</select></div>" +
+      "</div>" +
+      "<div class='field' style='margin:10px 0'><label>Roles (comma-separated)</label><input class='eRoles' value='" + esc((r.roles || []).join(", ")) + "' placeholder='Reporter, Producer, Editor'></div>" +
+      "<div class='field' style='margin:10px 0'><label>Assets (comma-separated)</label><input class='eAssets' value='" + esc((r.assets || []).join(", ")) + "' placeholder='Broadcast master, Captions'></div>" +
+      "<div class='field' style='margin:10px 0'><label>Rights (comma-separated)</label><input class='eRights' value='" + esc((r.rights || []).join(", ")) + "' placeholder='Linear TV, VOD'></div>" +
+      "<p class='err eErr'></p><div style='display:flex;gap:10px'><button class='btn btn-primary saveEdit' style='width:auto'>Save changes</button><button class='btn btn-ghost cancelEdit' style='width:auto'>Cancel</button></div></div>";
+    if (r.status === "open") {
+      apps += nApps
+        ? "<h4 style='margin:10px 0 2px'>Applications</h4>" + (r.applications || []).map(a =>
+          "<div class='app-row'><span><b>" + esc(a.name) + "</b>" + (a.roles && a.roles.length ? " <span class='fine'>" + esc(a.roles.join(", ")) + "</span>" : "") + (a.note ? "<br><span class='fine'>“" + esc(a.note) + "”</span>" : "") + "</span><button class='btn btn-primary acc' style='width:auto' data-email='" + esc(a.email) + "'>Accept</button></div>").join("")
+        : "<p class='fine' style='margin:8px 0 0'>No applications yet — new briefs usually get their first response within a day or two.</p>";
+      const dirRows = Array.isArray(directory) ? directory : [];
+      if (dirRows.length) {
+        const dopts = dirRows.map(c => "<option value='" + esc(c.email) + "'>" + esc(c.name + " · " + (c.roles || []).join(", ")) + "</option>").join("");
+        apps += "<div style='display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap'><span style='font-size:13px'>Know who you want?</span><select class='dirsel' style='max-width:280px'>" + dopts + "</select><button class='btn btn-ghost direct' style='width:auto'>Assign directly</button></div>";
+      }
+    } else if (r.assignee) {
+      apps += "<p style='font-size:13.5px;margin:8px 0 0'>In production with <b>" + esc(r.assignee.name || r.assignee.email) + "</b></p>";
+    }
+    let flow = "";
+    const del = r.delivery || {};
+    if (r.status === "submitted") {
+      flow = "<div class='callout'>" + icon("package", 14) + " Delivery received " + esc(estStamp(del.at)) + " EST — take a look, then approve it or ask for changes below." +
+        (del.note ? "<br>“" + esc(del.note) + "”" : "") + "</div>" + deliveryFile(del, r.status === "completed") +
+        (del.assetId ? "<div class='modbox' data-aid='" + del.assetId + "'" + ((del.assetMime || "").indexOf("video") === 0 ? " data-video='1'" : "") + "></div>" : "") +
+        (del.assetId ? "<div class='ccbox' data-aid='" + del.assetId + "'" + ((del.assetMime || "").indexOf("video") === 0 ? " data-video='1'" : "") + "></div>" : "") +
+        "<div class='field' style='margin:10px 0'><label>Feedback (only needed when requesting changes)</label><input class='fb' placeholder='What should change…'></div>" +
+        "<div style='display:flex;gap:10px'><button class='btn btn-primary ok' style='width:auto'>Approve delivery</button><button class='btn btn-ghost ch' style='width:auto'>Request changes</button></div>";
+    } else if (r.status === "completed") {
+      flow = "<p class='fine'>" + icon("check", 12) + " Completed" + (r.completedAt ? " " + esc(estDate(r.completedAt)) : "") + ".</p>" +
+        (del.assetId ? "<h4 style='margin:12px 0 4px'>Final delivery · v" + (del.v || 1) + "</h4>" + deliveryFile(del, r.status === "completed") + "<div class='modbox' data-aid='" + del.assetId + "'" + ((del.assetMime || "").indexOf("video") === 0 ? " data-video='1'" : "") + "></div>" + "<div class='ccbox' data-aid='" + del.assetId + "'" + ((del.assetMime || "").indexOf("video") === 0 ? " data-video='1'" : "") + "></div>" : "");
+    } else if (r.feedback) {
+      flow = "<p class='fine'>" + icon("alert", 12) + " Changes requested: “" + esc(r.feedback) + "” — waiting on a new delivery.</p>";
+    }
+    let detail = "";
+    if (r.status && r.status !== "open") {
+      const versions = (r.deliveries || []).map(v =>
+        "<div class='kv'><span>v" + v.v + " · " + esc(estStamp(v.at)) + " EST" + (v.note ? " — “" + esc(v.note) + "”" : "") + "</span>" +
+        (v.assetId ? "<span><a href='/assets/" + encodeURIComponent(v.assetId) + "' target='_blank' rel='noopener'>View " + icon("external", 12) + "</a>" + (r.status === "completed" ? " · <a href='/assets/" + encodeURIComponent(v.assetId) + "?download=1' download>" + icon("download", 12) + " Download</a>" : "") + "</span>" : "<b>note only</b>") + "</div>").join("");
+      const notes = (r.notes || []).map(n =>
+        "<div style='border-top:1px solid var(--line);padding:8px 0;font-size:13px;'" + (n.resolved ? " class='fine'" : "") + ">" +
+        (n.tc ? "<b class='micro'>" + esc(n.tc) + "</b> " : "") + "<b>" + esc(n.author || "") + "</b> <span class='micro'>· " + esc(n.role || "") + (n.resolved ? " · RESOLVED" : "") + "</span><br>" + esc(n.text) +
+        "<br><a href='#' class='res' data-id='" + esc(n.id) + "' style='font-size:12.5px;font-weight:700'>" + (n.resolved ? "Reopen" : "Mark resolved") + "</a></div>").join("");
+      detail = (versions ? "<h4 style='margin:12px 0 4px'>Version history</h4>" + versions : "") +
+        "<h4 style='margin:12px 0 4px'>Review notes</h4>" + (notes || "<p class='fine'>No notes yet — timecoded notes you post here go straight to your contributor.</p>") +
+        "<div class='two' style='margin-top:8px'><div class='field'><label>Note</label><input class='nt' placeholder='Write a note…'></div>" +
+        "<div class='field'><label>Timecode</label><input class='tc' placeholder='01:12' style='max-width:110px'></div></div>" +
+        "<div style='margin-top:8px'><button class='btn btn-ghost post' style='width:auto'>Post note</button></div>";
+    }
+    const metaBits = [];
+    if (r.location) metaBits.push("<span>" + icon("pin", 12) + " " + esc(r.location) + "</span>");
+    if (r.due) metaBits.push("<span>" + icon("calendar", 12) + " Due " + esc(r.due) + "</span>");
+    if (r.budget) metaBits.push("<span>" + icon("dollar", 12) + " " + esc(r.budget) + "</span>");
+    metaBits.push("<span>" + icon("check", 12) + " " + nApps + (nApps === 1 ? " application" : " applications") + "</span>");
+    d.innerHTML = "<div class='micro'>" + esc(r.type || "Coverage") + " · " + esc(r.id) + " · " + esc(estDate(r.created)) + "</div>" +
+      "<div class='brief-top'><h3>" + esc(r.title) + "</h3><span class='pill " + pill[0] + "'>" + esc(pill[1]) + "</span></div>" +
+      "<div class='brief-meta'>" + metaBits.join("") + "</div>" +
+      "<div class='brief-meta' style='display:block'>" + apps + "</div>" + flow + detail;
+    const eb = d.querySelector(".editToggle");
+    if (eb) eb.onclick = (e) => {
+      e.preventDefault();
+      const box = d.querySelector(".editBox");
+      box.hidden = !box.hidden;
+    };
+    const ec = d.querySelector(".cancelEdit");
+    if (ec) ec.onclick = () => { d.querySelector(".editBox").hidden = true; };
+    const es = d.querySelector(".saveEdit");
+    if (es) es.onclick = async () => {
+      const errBox = d.querySelector(".eErr");
+      errBox.textContent = "";
+      const val = (c) => d.querySelector(c).value;
+      const csv = (c) => val(c).split(",").map(s => s.trim()).filter(Boolean);
+      const r2 = await fetch("/api/requests/" + r.id, { method: "PUT", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ title: val(".et"), brief: val(".eb"), type: val(".eType"), deliverable: val(".eDeliv"),
+          language: val(".eLang"), arrangement: val(".eArr"), location: val(".eLoc"), starts: val(".eStart"),
+          due: val(".eDue"), budget: val(".eBudget"), exclusivity: val(".eExcl"),
+          roles: csv(".eRoles"), assets: csv(".eAssets"), rights: csv(".eRights") }) });
+      if (!r2.ok) { const e2 = await r2.json().catch(() => ({})); errBox.textContent = e2.error || "Couldn't save those changes."; return; }
+      loadSent();
+    };
+    d.querySelectorAll(".acc").forEach(b => b.onclick = async () => {
+      if (!confirm("Assign this brief to " + b.dataset.email + "?")) return;
+      const r2 = await fetch("/api/requests/" + r.id + "/accept", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ email: b.dataset.email }) });
+      if (!r2.ok) { const e = await r2.json().catch(() => ({})); alert(e.error || "Couldn't assign that brief."); return; }
+      loadSent();
+    });
+    const direct = d.querySelector(".direct");
+    if (direct) direct.onclick = async () => {
+      const email = d.querySelector(".dirsel").value;
+      if (!email || !confirm("Assign this brief directly to " + email + "?")) return;
+      const r2 = await fetch("/api/requests/" + r.id + "/assign", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ email: email }) });
+      if (!r2.ok) { const e = await r2.json().catch(() => ({})); alert(e.error || "Couldn't assign that brief."); return; }
+      loadSent();
+    };
+    const ok = d.querySelector(".ok");
+    if (ok) ok.onclick = async () => {
+      const r2 = await fetch("/api/requests/" + r.id + "/approve", { method: "POST" });
+      if (!r2.ok) { const e = await r2.json().catch(() => ({})); alert(e.error || "Couldn't approve that delivery."); return; }
+      loadSent();
+    };
+    const ch = d.querySelector(".ch");
+    if (ch) ch.onclick = async () => {
+      const r2 = await fetch("/api/requests/" + r.id + "/changes", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ feedback: d.querySelector(".fb").value }) });
+      if (!r2.ok) { const e = await r2.json().catch(() => ({})); alert(e.error || "Couldn't send that feedback."); return; }
+      loadSent();
+    };
+    d.querySelectorAll(".res").forEach(a => a.onclick = async (e) => {
+      e.preventDefault();
+      await fetch("/api/requests/" + r.id + "/notes/" + a.dataset.id + "/resolve", { method: "POST" });
+      loadSent();
+    });
+    const post = d.querySelector(".post");
+    if (post) post.onclick = async () => {
+      const text = d.querySelector(".nt").value.trim();
+      const tc = d.querySelector(".tc").value.trim();
+      if (!text) return;
+      const r2 = await fetch("/api/requests/" + r.id + "/notes", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ text: text, tc: tc }) });
+      if (!r2.ok) { const e = await r2.json().catch(() => ({})); alert(e.error || "Couldn't post that note."); return; }
+      loadSent();
+    };
+    d.querySelectorAll(".modbox").forEach(b => enhanceMod(b, true));
+    d.querySelectorAll(".ccbox").forEach(b => enhanceCc(b));
+    el.appendChild(d);
+  });
+  renderEmpty(); renderSummary();
+}
+async function loadPitches(){
+  const res = await fetch("/api/pitches");
+  const list = res.ok ? await res.json().catch(() => []) : [];
+  const panel = document.getElementById("pitchPanel");
+  const el = document.getElementById("pitchList");
+  lastPitches = Array.isArray(list) ? list : [];
+  if (!lastPitches.length) { panel.hidden = true; renderEmpty(); renderSummary(); return; }
+  panel.hidden = false;
+  el.innerHTML = "";
+  lastPitches.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "brief";
+    const ppill = PPILL[p.status] || PPILL.pending;
+    let action = "<p class='fine'>" + (p.status === "accepted" ? icon("check", 12) + " Accepted — find it as a brief in your sent requests." : icon("x", 12) + " You declined this pitch.") + "</p>";
+    if (p.status === "pending") action = "<div style='display:flex;gap:10px'><button class='btn btn-primary ok' style='width:auto'>Accept pitch</button><button class='btn btn-ghost no' style='width:auto'>Decline</button></div>" +
+      "<p class='fine' style='margin:8px 0 0'>No charge now — accepting creates a matching brief you can assign.</p>";
+    d.innerHTML = "<div class='micro'>" + esc(p.pitcherName || "") + " · " + esc(p.id) + " · " + esc(estDate(p.created)) + "</div>" +
+      "<div class='brief-top'><h3>" + esc(p.title) + "</h3><span class='pill " + ppill[0] + "'>" + esc(ppill[1]) + "</span></div><p>" + esc(p.brief || "") + "</p>" +
+      "<div class='brief-meta'>" + (p.budget ? "<span>" + icon("dollar", 12) + " " + esc(p.budget) + "</span>" : "") +
+      (p.assetId ? "<span><a href='/assets/" + encodeURIComponent(p.assetId) + "' target='_blank' rel='noopener'>View sample file " + icon("external", 12) + "</a></span>" : "") + "</div>" +
+      (p.assetId && (p.assetMime || "").indexOf("video") === 0 ? "<div class='dl-preview'><video controls preload='metadata' onplay=\"attachRollup(this, '" + p.assetId + "')\" src='/assets/" + encodeURIComponent(p.assetId) + "'></video></div>" : "") +
+      (p.assetId ? "<div class='modbox' data-aid='" + p.assetId + "'" + ((p.assetMime || "").indexOf("video") === 0 ? " data-video='1'" : "") + "></div>" : "") +
+      (p.assetId ? "<div class='ccbox' data-aid='" + p.assetId + "'" + ((p.assetMime || "").indexOf("video") === 0 ? " data-video='1'" : "") + "></div>" : "") + action;
+    const ok = d.querySelector(".ok");
+    if (ok) ok.onclick = async () => {
+      const r = await fetch("/api/pitches/" + p.id + "/accept", { method: "POST" });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't accept that pitch."); return; }
+      loadPitches(); loadSent();
+    };
+    const no = d.querySelector(".no");
+    if (no) no.onclick = async () => {
+      const r = await fetch("/api/pitches/" + p.id + "/decline", { method: "POST" });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't decline that pitch."); return; }
+      loadPitches();
+    };
+    d.querySelectorAll(".modbox").forEach(b => enhanceMod(b, true));
+    d.querySelectorAll(".ccbox").forEach(b => enhanceCc(b));
+    el.appendChild(d);
+  });
+  renderEmpty(); renderSummary();
+}
+function renderEmpty(){
+  const sentHidden = document.getElementById("sentPanel").hidden;
+  const pitchHidden = document.getElementById("pitchPanel").hidden;
+  document.getElementById("emptyState").innerHTML = (sentHidden && pitchHidden)
+    ? "<div class='panel'><h2>Nothing here yet.</h2><p class='hint'>Briefs you send and pitches you receive will land here, ready to review.</p><a class='btn btn-primary' style='width:auto' href='/request'>" + icon("plus", 15) + " Request coverage</a></div>"
+    : "";
+}
+guard("station").then(u => {
+  if (!u) return;
+  topUser(u); notifBell(); tickClock(); tzLine("tzline");
+  fetch("/api/directory").then(r => r.ok ? r.json() : []).then(rows => { directory = Array.isArray(rows) ? rows : []; loadSent(); }).catch(() => {});
+  loadSent(); loadPitches();
+});
+</script>
+</body>
+</html>

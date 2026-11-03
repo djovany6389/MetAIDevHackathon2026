@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Profile</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Workspace</div>
+      <a href="/contributor">◉ Dashboard</a>
+      <a href="/assignments">▤ Assignments</a>
+      <a href="/pitches">✉ Pitches</a>
+      <a href="/publish">＋ Publish work</a>
+      <a href="/listings">◍ My listings</a>
+      <a href="/media">◫ Media library</a>
+      <a href="/sales">$ Sales</a>
+      <a href="/profile" class="active">⚙ Profile</a>
+      <a href="#" onclick="logout();return false">→ Sign out</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Contributor</span><span class="tag">CONTRIBUTOR</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="page-head">
+        <div><div class="micro" style="color:var(--brand-dark)">Contributor workspace</div>
+        <h1>Profile.</h1>
+        <p>How stations see you. Your roles decide which briefs match.</p></div>
+      </div>
+      <div class="panel">
+        <h2>Public profile</h2>
+        <div class="two" style="margin-top:12px">
+          <div class="field"><label>Full name</label><input id="fName"></div>
+          <div class="field"><label>Based in</label><input id="fBase" placeholder="City, ST"></div>
+          <div class="field"><label>Coverage specialties</label><input id="fSpec" placeholder="Beats or topics"></div>
+          <div class="field"><label>Working languages</label><input id="fLang" placeholder="English, Spanish"></div>
+        </div>
+        <div class="field" style="margin-top:12px"><label>Professional roles</label><div class="opt-row chips" id="roles"></div></div>
+        <p class="err" id="profErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-primary" style="width:auto" id="saveBtn">Save profile</button></div>
+      </div>
+      <div class="panel">
+        <h2>Change password</h2>
+        <div class="two" style="margin-top:12px">
+          <div class="field"><label>Current password</label><input id="pwCur" type="password" autocomplete="current-password"></div>
+          <div class="field"><label>New password (8+ characters)</label><input id="pwNew" type="password" autocomplete="new-password"></div>
+        </div>
+        <p class="err" id="pwErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-ghost" id="pwBtn">Change password</button></div>
+      </div>
+      <div class="page-foot"><span id="acctLine"></span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+const PROFS = ["Reporter","Producer","Editor","Camera operator","Anchor","Photographer","Graphic designer","Motion designer","Broadcast engineer"];
+const picked = new Set();
+function drawRoles(){
+  const box = document.getElementById("roles");
+  box.innerHTML = "";
+  PROFS.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip";
+    b.setAttribute("aria-pressed", picked.has(p) ? "true" : "false");
+    b.innerHTML = "<span class='ring'></span>" + esc(p);
+    b.onclick = () => { picked.has(p) ? picked.delete(p) : picked.add(p); drawRoles(); };
+    box.appendChild(b);
+  });
+}
+async function load() {
+  const u = await guard("contributor");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  document.getElementById("acctLine").textContent = "Signed in as " + u.email;
+  document.getElementById("fName").value = u.name || "";
+  document.getElementById("fBase").value = u.based || "";
+  document.getElementById("fSpec").value = u.specialties || "";
+  document.getElementById("fLang").value = u.languages || "";
+  picked.clear();
+  (u.roles || []).forEach(r => picked.add(r));
+  drawRoles();
+}
+document.getElementById("saveBtn").onclick = async () => {
+  const err = document.getElementById("profErr");
+  err.textContent = "";
+  const r = await fetch("/api/me", { method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify({
+    name: document.getElementById("fName").value, based: document.getElementById("fBase").value,
+    specialties: document.getElementById("fSpec").value, languages: document.getElementById("fLang").value,
+    roles: [...picked] }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't save that profile."; return; }
+  topUser(saved);
+  err.textContent = "";
+  alert("Profile saved.");
+};
+document.getElementById("pwBtn").onclick = async () => {
+  const err = document.getElementById("pwErr");
+  err.textContent = "";
+  const r = await fetch("/api/password", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({
+    current: document.getElementById("pwCur").value, new: document.getElementById("pwNew").value }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't change that password."; return; }
+  document.getElementById("pwCur").value = "";
+  document.getElementById("pwNew").value = "";
+  alert("Password changed.");
+};
+load();
+</script>
+</body>
+</html>

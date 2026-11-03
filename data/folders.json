@@ -1,0 +1,25 @@
+{
+ "maya@mayachen.media": [
+  {
+   "id": "uploads",
+   "name": "Uploads",
+   "created": "2026-10-31T03:50:27.299864+00:00",
+   "system": true
+  },
+  {
+   "id": "raw",
+   "name": "Raw footage",
+   "created": "2026-10-31T03:50:27.299864+00:00"
+  },
+  {
+   "id": "finals",
+   "name": "Finals",
+   "created": "2026-10-31T03:50:27.299864+00:00"
+  },
+  {
+   "id": "fld_4b08425e",
+   "name": "GFX",
+   "created": "2026-11-01T20:30:39.033837+00:00"
+  }
+ ]
+}

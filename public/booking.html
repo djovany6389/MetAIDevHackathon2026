@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Feed detail and booking</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Newsroom</div>
+      <a href="/discover" class="active">◉ Discover</a>
+      <a href="/bookings">((·)) My bookings</a>
+      <a href="/expenses">$ Expense report</a>
+      <a href="/requests">▤ Coverage requests</a>
+      <a href="/request">+ Request coverage</a>
+      <a href="/discover?saved=1">⚑ Saved content</a>
+      <a href="/station">⚙ Profile</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Station</span><span class="tag">STATION ⌄</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="crumb">← <a href="/discover">Discover</a> / <span id="crumbKind">Content</span> / <span id="crumbTitle"></span></div>
+      <div id="done"></div>
+      <div class="page-head">
+        <div><span class="pill-live" id="livePill"></span> <span class="micro" id="kindCode"></span>
+        <h1 class="book-title" id="bTitle" style="font-size:30px"></h1>
+        <p class="book-sub" id="bSub"></p></div>
+        <div class="book-actions"><button class="btn btn-ghost" id="saveBtn"><i data-ic="bookmark" data-size="15"></i> Save</button><button class="btn btn-ghost" id="shareBtn"><i data-ic="share" data-size="15"></i> Share</button></div>
+      </div>
+      <div class="book-grid">
+        <div>
+          <div class="preview">
+            <div class="preview-bar"><span id="pvCode"></span><span id="pvClock"></span></div>
+            <div class="preview-img"><img id="pvImg" src="img/harbor.svg" alt="Program preview"><span class="badge" id="pvBadge" style="top:14px;left:14px"></span><div class="watermark">WATERMARKED PREVIEW · NOT FOR BROADCAST</div></div>
+            <div class="preview-status"><span><span class="dot-live"><span class="live-dot"></span></span> <span id="pvTech"></span></span></div>
+            <div class="modbox" id="modBox" hidden></div>
+          </div>
+          <div class="panel">
+            <div class="spec-tabs"><span id="tabOv" class="on" style="cursor:pointer">Overview &amp; rights</span><span id="tabTech" style="cursor:pointer">Technical specifications</span></div>
+            <div id="paneOv">
+              <p style="font-size:13.5px;color:var(--muted);line-height:1.6" id="bDesc"></p>
+              <div id="intelBox"></div>
+              <div class="spec-grid">
+                <div><div class="micro">License</div><div id="bLicense"></div></div>
+                <div><div class="micro">Permitted use</div><div id="bPermitted"></div></div>
+                <div><div class="micro">Delivery</div><div id="bDelivery"></div></div>
+                <div><div class="micro">Restrictions</div><div id="bRestr"></div></div>
+              </div>
+            </div>
+            <div id="paneTech" hidden>
+              <p style="font-size:13.5px;color:var(--muted);line-height:1.6" id="bTechFull"></p>
+              <div class="spec-grid">
+                <div><div class="micro">Format</div><div id="bMeta"></div></div>
+                <div><div class="micro">Market</div><div id="bMarket"></div></div>
+                <div><div class="micro">Recorded</div><div id="bRecorded"></div></div>
+              </div>
+            </div>
+            <div class="callout" id="availNote"></div>
+          </div>
+          <div class="panel mini-form">
+            <h2>Need more than this listing?</h2>
+            <p class="hint">Commission a reporter, a custom angle or a finished package.</p>
+            <div class="field"><label>Coverage brief</label><textarea id="mBrief" style="min-height:70px" placeholder="Describe the coverage you need…"></textarea></div>
+            <div class="two">
+              <div class="field"><label>Needed by</label><input id="mDue" type="date"></div>
+              <div class="field"><label>Budget (USD)</label><input id="mBudget" placeholder="$350"></div>
+            </div>
+            <div style="margin-top:12px"><button class="btn btn-primary" style="width:auto" id="mSend"><i data-ic="send" data-size="15"></i> Send request</button></div>
+            <p class="fine" style="margin-bottom:0">Sent to matching, verified Contributors. Quoted separately from this booking.</p>
+          </div>
+        </div>
+        <div>
+          <div class="panel price-card">
+            <div><span class="price"><span id="pPrice"></span> <small id="pUnit"></small></span><span class="avail" id="pAvail"></span></div>
+            <p class="fine" id="bookNote">Book only the airtime you need. Usage rights are limited to your selected window.</p>
+            <div class="field"><label>Broadcast date</label><input id="pDate" type="date"></div>
+            <div id="hourlyFields">
+              <div class="two" style="margin-top:12px">
+                <div class="field"><label>From (EST)</label><input id="pFrom" type="time" value="18:00"></div>
+                <div class="field"><label>Until (EST)</label><input id="pUntil" type="time" value="20:00"></div>
+              </div>
+              <div class="kv" style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-top:12px"><span>Licensed usage period</span><b id="pHours"></b></div>
+            </div>
+            <div id="fixedFields" hidden>
+              <div class="field" style="margin-top:12px"><label>Quantity</label><input id="pQty" type="number" min="1" max="99" value="1"></div>
+            </div>
+            <div class="totals">
+              <div class="kv"><span id="pLine"></span><b id="pSub"></b></div>
+              <div class="kv"><span>Booking fee</span><b>$0.00</b></div>
+              <div class="total-row"><b>Total · USD</b><b id="pTotal"></b></div>
+            </div>
+            <div class="field" style="margin-top:12px"><label>Card number</label><input id="ccNum" inputmode="numeric" placeholder="4111 1111 1111 1111" maxlength="19"></div>
+            <div class="two" style="margin-top:12px">
+              <div class="field"><label>Expiry</label><input id="ccExp" placeholder="MM/YY" maxlength="5"></div>
+              <div class="field"><label>CVC</label><input id="ccCvc" inputmode="numeric" placeholder="123" maxlength="4"></div>
+            </div>
+            <button class="btn btn-ghost" id="demoCard" type="button" style="width:100%;margin-top:8px"><i data-ic="zap" data-size="15"></i> Fill demo card (MVP testing)</button>
+            <p class="fine">Demo card 4111&nbsp;1111&nbsp;1111&nbsp;1111 · any future expiry · any CVC. No real charge.</p>
+            <p class="err" id="payErr"></p>
+            <button class="btn btn-primary" id="payBtn"></button>
+            <p class="fine" id="cancelNote"></p>
+          </div>
+          <div class="verified"><i data-ic="checkcircle" data-size="16"></i><div><b>Verified Relay listing</b><br><small id="vOwner"></small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+const id = new URLSearchParams(location.search).get("id") || "";
+let item = null, isSaved = false;
+function hrs(){
+  const p = s => { const m = (s||"").trim().match(/^(\d{1,2}):(\d{2})$/); return m ? (+m[1]) + (+m[2])/60 : null; };
+  const a = p(document.getElementById("pFrom").value), b = p(document.getElementById("pUntil").value);
+  if (a === null || b === null || b <= a) return 0;
+  return Math.round((b - a) * 100) / 100;
+}
+function recalc(){
+  if (!item) return;
+  const hourly = item.unit === "hour";
+  const h = hourly ? hrs() : (parseInt(document.getElementById("pQty").value, 10) || 0);
+  const total = item.price * h;
+  if (hourly) document.getElementById("pHours").textContent = h + (h === 1 ? " hour" : " hours");
+  document.getElementById("pLine").textContent = hourly ? (money(item.price) + " × " + h + " hours") : (money(item.price) + " × " + h);
+  document.getElementById("pSub").textContent = money(total);
+  document.getElementById("pTotal").textContent = money(total);
+  document.getElementById("payBtn").textContent = "Book now · " + money(total);
+  if (hourly && h > 0) {
+    const [H, M] = document.getElementById("pFrom").value.split(":").map(Number);
+    const d = new Date(); d.setUTCHours(H, M - 5, 0, 0);
+    const t = String(d.getUTCHours()).padStart(2,"0") + ":" + String(d.getUTCMinutes()).padStart(2,"0");
+    document.getElementById("cancelNote").textContent = "Cancel free until " + t + " EST. Ends " + document.getElementById("pUntil").value + " EST; no automatic renewal. Local billing record — no external charge.";
+  } else if (!hourly) {
+    document.getElementById("cancelNote").textContent = "Licensed on booking. Local billing record — no external charge.";
+  } else {
+    document.getElementById("cancelNote").textContent = "Pick a valid window: until must be after from.";
+  }
+}
+function luhn(num){
+  const d = num.replace(/\D/g, "");
+  if (d.length < 13 || d.length > 19) return false;
+  let sum = 0, dbl = false;
+  for (let i = d.length - 1; i >= 0; i--) {
+    let n = +d[i];
+    if (dbl) { n *= 2; if (n > 9) n -= 9; }
+    sum += n; dbl = !dbl;
+  }
+  return sum % 10 === 0;
+}
+function validCard(){
+  const num = document.getElementById("ccNum").value;
+  const exp = document.getElementById("ccExp").value.trim();
+  const cvc = document.getElementById("ccCvc").value.trim();
+  if (!luhn(num)) return "Card number is invalid.";
+  const m = exp.match(/^(0[1-9]|1[0-2])\/(\d{2})$/);
+  if (!m) return "Expiry must be MM/YY.";
+  const end = new Date(2000 + (+m[2]), +m[1], 1);
+  if (end <= new Date()) return "Card is expired.";
+  if (!/^\d{3,4}$/.test(cvc)) return "CVC must be 3–4 digits.";
+  return "";
+}
+async function load(){
+  const u = await guard("station"); if (!u) return; topUser(u); notifBell();
+  tickClock(); document.getElementById("pvClock").textContent = estNowStamp();
+  if (!id) { document.getElementById("bTitle").textContent = "Content not found"; return; }
+  const r = await fetch("/api/content/" + encodeURIComponent(id));
+  if (!r.ok) { document.getElementById("bTitle").textContent = "Content not found"; return; }
+  item = await r.json();
+  document.getElementById("crumbKind").textContent = item.kindLabel + "s";
+  document.getElementById("crumbTitle").textContent = item.title.split("·")[0].trim();
+  document.getElementById("kindCode").textContent = (item.kindLabel + " · " + item.id).toUpperCase();
+  document.getElementById("bTitle").textContent = item.title;
+  document.getElementById("bSub").innerHTML = icon("pin", 12) + " " + esc(item.market) + " · Owned by " + esc(item.owner) + " " + icon("check", 12);
+  document.getElementById("bDesc").textContent = item.description;
+  document.getElementById("bLicense").textContent = item.license;
+  document.getElementById("bPermitted").textContent = item.permitted;
+  document.getElementById("bDelivery").textContent = item.unit === "hour" ? "SRT primary · HLS backup" : "File delivery · broadcast master";
+  document.getElementById("bRestr").textContent = item.restrictions;
+  document.getElementById("bTechFull").textContent = item.tech;
+  document.getElementById("bMeta").textContent = item.meta;
+  document.getElementById("bMarket").textContent = item.market;
+  document.getElementById("bRecorded").textContent = item.recorded || "—";
+  document.getElementById("pvImg").src = item.thumb;
+  document.getElementById("pvTech").textContent = item.tech;
+  document.getElementById("pvCode").textContent = item.id.toUpperCase() + " / PROGRAM PREVIEW";
+  document.getElementById("pvBadge").innerHTML = (item.status === "live" ? "<span class='live-dot'></span> LIVE" : esc(item.statusLabel.toUpperCase()));
+  document.getElementById("vOwner").textContent = "Owned & operated by " + item.owner;
+  document.getElementById("pPrice").textContent = money(item.price);
+  document.getElementById("pUnit").textContent = "/ " + item.unit;
+  document.getElementById("livePill").innerHTML = "<span class='live-dot'></span> " + esc(item.status === "live" ? "LIVE" : item.statusLabel.toUpperCase());
+  document.getElementById("availNote").innerHTML = item.bookable === false
+    ? icon("alert", 14) + " This feed is currently offline and cannot be booked. Try another window or listing."
+    : (item.unit === "hour" ? "<span class='live-dot'></span> Available for your selected window · Preview is always free." : "<span class='live-dot'></span> Ready to license · Preview is always free.");
+  document.getElementById("pAvail").innerHTML = item.bookable === false ? "<span class='off-dot'></span> OFFLINE" : "<span class='live-dot'></span> AVAILABLE";
+  const hourly = item.unit === "hour";
+  document.getElementById("hourlyFields").hidden = !hourly;
+  document.getElementById("fixedFields").hidden = hourly;
+  document.getElementById("bookNote").textContent = hourly
+    ? "Book only the airtime you need. Usage rights are limited to your selected window."
+    : "License once, use within the rights window below.";
+  document.getElementById("pDate").value = todayEST();
+  document.getElementById("mDue").value = todayEST();
+  if (item.bookable === false) document.getElementById("payBtn").disabled = true;
+  const s = await (await fetch("/api/saved")).json();
+  isSaved = (s.saved || []).includes(item.id);
+  syncSave();
+  recalc();
+  if ((item.stream || "").indexOf("/assets/") === 0) {
+    const v = document.createElement("video");
+    v.id = "pvVideo";
+    v.controls = true;
+    v.preload = "metadata";
+    v.poster = item.thumb;
+    v.src = item.reviewStream || item.stream;
+    document.getElementById("pvImg").replaceWith(v);
+    v.addEventListener("play", () => attachRollup(v, item.asset), { once: true });
+  }
+  if (item.asset) {
+    const box = document.getElementById("modBox");
+    box.hidden = false;
+    box.dataset.aid = item.asset;
+    if ((item.assetMime || "").indexOf("video") === 0) box.dataset.video = "1";
+    enhanceMod(box, true);
+    loadIntel(item.asset);
+  }
+}
+async function loadIntel(aid){
+  const box = document.getElementById("intelBox");
+  let body = {};
+  try {
+    const r = await fetch("/api/assets/" + encodeURIComponent(aid) + "/intelligence");
+    body = r.ok ? await r.json() : {};
+  } catch (e) { return; }
+  const st = body.status || "none";
+  if (st === "ready" && (body.summary || (body.tags || []).length)) {
+    const tags = (body.tags || []).map(t => "<span class='pill flag-gray'>" + esc(t) + "</span>").join(" ");
+    box.innerHTML = "<div class='micro'>AI summary</div><p style='font-size:13.5px;color:var(--muted);line-height:1.6'>" + esc(body.summary || "") + "</p>" + (tags ? "<div class='flag-tags'>" + tags + "</div>" : "");
+    return;
+  }
+  if (st === "pending") {
+    box.innerHTML = "<p class='fine'>Summarizing…</p>";
+    setTimeout(() => loadIntel(aid), 4000);
+    return;
+  }
+  box.innerHTML = "<button class='btn btn-ghost' style='width:auto;padding:4px 10px;font-size:12px' id='intelGen'>Generate AI summary</button>";
+  document.getElementById("intelGen").onclick = async () => {
+    const r = await fetch("/api/assets/" + encodeURIComponent(aid) + "/intelligence", { method: "POST" });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't start summarizing."); return; }
+    box.innerHTML = "<p class='fine'>Summarizing…</p>";
+    setTimeout(() => loadIntel(aid), 4000);
+  };
+}
+function syncSave(){
+  const sb = document.getElementById("saveBtn");
+  sb.classList.toggle("fill", isSaved);
+  sb.innerHTML = icon("bookmark", 15) + (isSaved ? " Saved" : " Save");
+}
+["pFrom","pUntil","pQty","pDate"].forEach(x => document.getElementById(x).oninput = recalc);
+document.getElementById("tabOv").onclick = () => { document.getElementById("paneOv").hidden = false; document.getElementById("paneTech").hidden = true; document.getElementById("tabOv").classList.add("on"); document.getElementById("tabTech").classList.remove("on"); };
+document.getElementById("tabTech").onclick = () => { document.getElementById("paneOv").hidden = true; document.getElementById("paneTech").hidden = false; document.getElementById("tabTech").classList.add("on"); document.getElementById("tabOv").classList.remove("on"); };
+document.getElementById("saveBtn").onclick = async () => {
+  if (isSaved) await fetch("/api/saved/" + encodeURIComponent(id), { method: "DELETE" });
+  else await fetch("/api/saved", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ contentId: id }) });
+  isSaved = !isSaved; syncSave();
+};
+document.getElementById("shareBtn").onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); document.getElementById("shareBtn").innerHTML = icon("check", 15) + " Link copied"; }
+  catch (e) { prompt("Copy this link:", location.href); }
+};
+document.getElementById("mSend").onclick = () => {
+  const q = new URLSearchParams({ title: "Coverage: " + (item ? item.title.split("·")[0].trim() : ""),
+    brief: document.getElementById("mBrief").value, due: document.getElementById("mDue").value,
+    budget: document.getElementById("mBudget").value });
+  location.href = "/request?" + q.toString();
+};
+document.getElementById("demoCard").onclick = () => {
+  document.getElementById("ccNum").value = "4111 1111 1111 1111";
+  document.getElementById("ccExp").value = "12/28";
+  document.getElementById("ccCvc").value = "123";
+  document.getElementById("payErr").textContent = "";
+};
+document.getElementById("payBtn").onclick = async () => {
+  const err = document.getElementById("payErr");
+  err.textContent = "";
+  const hourly = item.unit === "hour";
+  if (hourly && hrs() <= 0) { err.textContent = "Pick a valid window: until must be after from."; return; }
+  const cardErr = validCard();
+  if (cardErr) { err.textContent = cardErr; return; }
+  const body = { contentId: id, date: document.getElementById("pDate").value,
+    from: hourly ? document.getElementById("pFrom").value : "",
+    until: hourly ? document.getElementById("pUntil").value : "",
+    qty: hourly ? 1 : (parseInt(document.getElementById("pQty").value, 10) || 1),
+    cardLast4: document.getElementById("ccNum").value.replace(/\D/g,"").slice(-4) };
+  const btn = document.getElementById("payBtn");
+  btn.disabled = true;
+  const r = await fetch("/api/bookings", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  const saved = await r.json().catch(() => ({}));
+  if (r.status === 401) { location.href = "/login?next=" + encodeURIComponent("/booking?id=" + id); return; }
+  if (!r.ok) { err.textContent = saved.error || "Couldn't complete that booking."; btn.disabled = false; return; }
+  document.getElementById("done").innerHTML = "<div class='success'><h2>Booking " + esc(saved.id) + " confirmed — " + esc(saved.totalText) + ".</h2><p>Invoice " + esc(saved.invoice) + " · " + (hourly ? "Connection details release five minutes before " + esc(saved.from) + " UTC." : "Your licensed asset is ready in My bookings.") + " <a href='/bookings'>Open My bookings →</a></p></div>";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+load();
+</script>
+</body>
+</html>

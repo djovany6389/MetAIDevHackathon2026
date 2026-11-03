@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay · Partner cameras and usage earnings</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>relay</div>
+    <nav class="nav">
+      <div class="micro">Partner network</div>
+      <a href="/partner" class="active">▦ Overview</a>
+      <a href="#cameras">◫ My cameras</a>
+      <a href="#usage">∿ Usage history</a>
+      <a href="#payouts">▤ Payouts</a>
+      <a href="#settings">⚙ Settings</a>
+    </nav>
+    <div class="side-foot"><div class="ok"><i></i>All systems operational</div><div class="micro" style="margin-top:10px">Independent. Connected.</div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar"><span class="station" id="stationName">Partner</span><span class="tag">PARTNER ⌄</span><span class="clock" id="clock"></span><span class="avatar" id="avatar">··</span><button class="signout" onclick="logout()">Sign out</button></div>
+    <div class="content">
+      <div class="micro" style="color:var(--brand-dark)">Partner workspace / <span id="orgName"></span></div>
+      <div class="page-head">
+        <div><h1>Your view. Your local market.</h1>
+        <p>Serve local and regional U.S. stations with the cameras you own. Manage availability and track licensed use.</p></div>
+        <a class="btn btn-primary" href="#register">+ Register a camera</a>
+      </div>
+      <div class="banner-soft">
+        <div style="font-size:22px"><i data-ic="video" data-size="22"></i></div>
+        <div><h3>Your equipment. Your property. Paid when used.</h3>
+        <p>You install, own and manage your cameras. You earn a usage share only when a Station licenses a feed — not a subscription or equipment rental.</p></div>
+      </div>
+
+      <div class="sec-head"><h2>Usage &amp; earnings</h2><span class="meta">All amounts in USD · EST &nbsp; <span id="periodLabel"></span></span></div>
+      <div class="stat-grid four" id="stats"></div>
+
+      <div class="sec-head"><h2 id="cameras">Your cameras <span id="camSub"></span></h2></div>
+      <div class="cam-grid" id="cams"></div>
+
+      <div class="usage-grid" style="margin-top:22px">
+        <div class="panel" style="margin:0">
+          <div class="sec-head" style="margin-top:0"><h2 id="usage">Recent feed usage</h2><a href="#" id="exportBtn"><i data-ic="download" data-size="13"></i> Export statement</a></div>
+          <table class="table"><thead><tr><th>Station / usage window (EST)</th><th>Camera / duration</th><th style="text-align:right">Your earnings</th></tr></thead><tbody id="rows"></tbody></table>
+          <div class="link-row"><a href="#" id="moreBtn"></a></div>
+        </div>
+        <div class="dark-card" id="payouts">
+          <h3>Earning from your perspective</h3>
+          <p class="sub" id="barsSub">Net usage earnings · USD</p>
+          <div class="bars" id="bars"></div>
+          <div class="share-row"><span>Your share of licensed usage</span><b>60%</b></div>
+          <p class="fine">Station usage rate × licensed hours × 60%. No earnings accrue while a feed is unused or offline.</p>
+        </div>
+      </div>
+
+      <div class="panel" id="register" style="margin-top:18px">
+        <h2>Register a camera</h2>
+        <p class="hint">Add a camera on your property. It goes live after a Relay signal check.</p>
+        <div class="two">
+          <div class="field"><label>Feed name *</label><input id="fName" placeholder="Downtown skyline"></div>
+          <div class="field"><label>Install location *</label><input id="fLoc" placeholder="Rooftop, north corner"></div>
+          <div class="field"><label>Market</label><input id="fMarket" placeholder="City, ST"></div>
+          <div class="field"><label>Coordinates</label><input id="fCoords" placeholder="40.70° N, 74.01° W"></div>
+          <div class="field"><label>Uplink URL</label><input id="fUplink" placeholder="srt://uplink.example.com:9000?streamid=cam-02"></div>
+          <div class="field"><label>Hourly rate (USD) *</label><input id="fRate" type="number" min="1" step="0.01" placeholder="48"></div>
+        </div>
+        <p class="err" id="feedErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-primary" style="width:auto" id="addBtn"><i data-ic="plus" data-size="15"></i> Register feed</button></div>
+      </div>
+
+      <div class="panel" id="settings">
+        <h2>Workspace settings</h2>
+        <p class="hint">Payout destination for your 60% usage share. Stored with your Relay account.</p>
+        <div class="two">
+          <div class="field"><label>Payout bank account</label><input id="bank" placeholder="Bank name · last 4"></div>
+          <div class="field"><label>Uplink alerts</label><select id="notif"><option>Email me on signal loss</option><option>Email + SMS on signal loss</option><option>Muted</option></select></div>
+        </div>
+        <p class="err" id="setErr"></p>
+        <div style="margin-top:12px"><button class="btn btn-ghost" id="saveBtn">Save settings</button></div>
+      </div>
+
+      <p class="fine" id="footNote" style="margin-top:6px"></p>
+      <div class="page-foot"><span>© 2026 Relay Network · All amounts in USD</span><span class="clocks" id="tzline"></span></div>
+    </div>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+<script>
+let feeds = [], usage = [], expanded = false, settings = {};
+function hours(t) { const h = Math.floor(t), m = Math.round((t - h) * 60); return h + "h " + String(m).padStart(2, "0") + "m"; }
+function rowDate(r){ return r.date || (r.created || "").slice(0, 10); }
+
+async function load() {
+  const u = await guard("partner");
+  if (!u) return;
+  topUser(u); notifBell();
+  tickClock(); tzLine("tzline");
+  document.getElementById("orgName").textContent = u.org || u.name;
+  feeds = await (await fetch("/api/feeds")).json();
+  usage = await (await fetch("/api/usage")).json();
+  settings = await (await fetch("/api/settings")).json();
+  const now = new Date(Date.now() - EST_MS);
+  document.getElementById("periodLabel").textContent = now.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  renderStats(); renderCams(); renderUsage(); renderBars();
+  document.getElementById("bank").value = settings.bank || "";
+  document.getElementById("notif").value = settings.notif || "Email me on signal loss";
+  document.getElementById("footNote").innerHTML = icon("info", 12) + " All " + feeds.length + " cameras are registered to " + esc(u.org || u.name) + ". You retain equipment ownership and control feed availability.";
+}
+function feedStats(f) {
+  const rows = usage.filter(r => r.feedId === f.id);
+  return { h: rows.reduce((n, r) => n + (r.hours || 0), 0), e: rows.reduce((n, r) => n + (r.earnings || 0), 0) };
+}
+function nextPayout(){
+  const d = new Date(Date.now() - EST_MS);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toLocaleDateString("en-US", { day: "numeric", month: "long", timeZone: "UTC" });
+}
+function trend(){
+  const now = Date.now(), span = 28 * 864e5;
+  const inWin = (t0, t1) => usage.filter(r => { const t = Date.parse(rowDate(r)); return t >= t0 && t < t1; }).reduce((n, r) => n + (r.earnings || 0), 0);
+  const cur = inWin(now - span, now), prev = inWin(now - 2 * span, now - span);
+  if (!prev) return cur ? "first earnings in this period" : "no earnings yet";
+  const pct = Math.round((cur - prev) / prev * 100);
+  return (pct >= 0 ? "↑ " : "↓ ") + Math.abs(pct) + "% vs. previous 28 days";
+}
+function renderStats() {
+  const earn = usage.reduce((n, r) => n + (r.earnings || 0), 0);
+  const hrs = usage.reduce((n, r) => n + (r.hours || 0), 0);
+  const cust = new Set(usage.map(r => r.station)).size;
+  document.getElementById("stats").innerHTML =
+    "<div class='stat'><span>Your usage earnings</span><b>" + money(earn) + "</b><span class='up'>" + esc(trend()) + "</span></div>" +
+    "<div class='stat'><span>Licensed camera time</span><b>" + hours(hrs) + "</b><span>Across " + feeds.length + " owned cameras</span></div>" +
+    "<div class='stat'><span>Paid feed bookings</span><b>" + usage.length + "</b><span>" + cust + " station customers</span></div>" +
+    "<div class='stat'><span>Next payout · " + esc(nextPayout()) + "</span><b>" + money(earn) + "</b><span>" + esc(settings.bank || "No payout account on file") + "</span></div>";
+}
+function renderCams() {
+  const online = feeds.filter(f => f.status === "live").length;
+  const need = feeds.filter(f => f.status !== "live").length;
+  document.getElementById("camSub").textContent = feeds.length + " owned · " + online + " online · " + need + " needs attention";
+  const el = document.getElementById("cams");
+  el.innerHTML = "";
+  if (!feeds.length) {
+    el.innerHTML = "<div class='panel' style='grid-column:1/-1'><h2>No cameras yet.</h2><p class='hint'>Register your first camera to start serving stations.</p><a class='btn btn-primary' style='width:auto' href='#register'>" + icon("plus", 15) + " Register a camera</a></div>";
+    return;
+  }
+  feeds.forEach(f => {
+    const s = feedStats(f);
+    const live = f.status === "live";
+    const pending = f.status === "pending";
+    const badge = live ? "<span class='badge mint'><span class='live-dot'></span> ONLINE · AVAILABLE</span>" :
+      pending ? "<span class='badge amber'>PENDING · SIGNAL CHECK</span>" : "<span class='badge amber'>OFFLINE · NOT BOOKABLE</span>";
+    const cap = live ? (esc(f.code) + " / LIVE VIEW") : (esc(f.code) + " / UNAVAILABLE");
+    const d = document.createElement("div");
+    d.className = "cam-card";
+    d.innerHTML = "<div class='cam-thumb'><img src='" + esc(f.thumb || "img/harbor.svg") + "' alt=''>" + badge + "<span class='card-meta'>" + cap + "</span></div>" +
+      "<div class='cam-body'><div class='cam-name'><h3>" + esc(f.name) + "</h3><span>" + esc(f.code || "") + "</span></div>" +
+      "<p class='cam-loc'>" + esc([f.location, f.market, f.coords].filter(Boolean).join(" · ")) + "</p>" +
+      (f.uplink ? "<p class='cam-loc'>" + icon("upload", 12) + " " + esc(f.uplink) + "</p>" : "") +
+      (live ? "<p class='cam-sig'>" + icon("activity", 12) + " " + esc(f.signal || "") + "</p>" : "<p class='cam-sig warn'>" + icon("alert", 12) + " " + esc(f.note || f.signal || "Unavailable") + "</p>") +
+      "<div class='cam-foot'><div><div class='earn'>" + money(s.e) + " <small>" + hours(s.h) + " used</small></div><div class='net'>" + money(f.net != null ? f.net : 0) + " / licensed hour · Your net share</div></div>" +
+      (live ? "<button class='btn btn-ghost' data-act='off'>Take offline</button>" : "<button class='btn btn-ghost' data-act='on'>" + (pending ? "Pass signal check" : "Reconnect") + "</button>") + "</div></div>";
+    const btn = d.querySelector("[data-act]");
+    btn.onclick = async () => {
+      const to = btn.dataset.act === "on" ? "live" : "offline";
+      const label = to === "live" ? (pending ? "mark the signal check passed and publish" : "reconnect") : "take offline";
+      if (!confirm("Are you sure you want to " + label + " " + f.name + " (" + f.code + ")?")) return;
+      let note = "";
+      if (to === "offline") note = prompt("Offline note for stations (optional):", "") || "";
+      const r = await fetch("/api/feeds/" + f.id + "/status", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ status: to, note: note }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); alert(e.error || "Couldn't update that camera."); return; }
+      load();
+    };
+    el.appendChild(d);
+  });
+}
+function renderUsage() {
+  const rows = document.getElementById("rows");
+  rows.innerHTML = "";
+  const list = expanded ? usage : usage.slice(0, 4);
+  if (!usage.length) {
+    rows.innerHTML = "<tr><td colspan='3' style='color:var(--faint)'>No licensed use yet. Earnings appear here when a station books your feeds.</td></tr>";
+  }
+  list.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = "<td><b>" + esc(r.station) + "</b><br><span class='micro'>" + esc(r.date + " · " + r.window) + "</span></td>" +
+      "<td>" + esc(r.feed) + "<br><span class='micro'>" + esc(r.hours + "h licensed use") + "</span></td>" +
+      "<td style='text-align:right'><b>" + money(r.earnings) + "</b><br><span class='micro' style='color:var(--brand-dark)'>Confirmed</span></td>";
+    rows.appendChild(tr);
+  });
+  const more = document.getElementById("moreBtn");
+  more.innerHTML = usage.length > 4 ? (expanded ? "Show less " + icon("arrowup", 12) : "View all " + usage.length + " bookings →") : "";
+  more.onclick = e => { e.preventDefault(); expanded = !expanded; renderUsage(); };
+}
+function renderBars() {
+  const now = new Date();
+  document.getElementById("barsSub").textContent = now.toLocaleDateString("en-US", { month: "long" }) + " net usage earnings · USD";
+  const weeks = [];
+  for (let i = 3; i >= 0; i--) {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
+    const start = new Date(end.getTime() - 6 * 864e5);
+    weeks.push([start, end, (start.getMonth() + 1) + "/" + start.getDate() + "–" + (end.getMonth() + 1) + "/" + end.getDate()]);
+  }
+  const sums = weeks.map(([a, b]) => usage.filter(r => { const t = Date.parse(rowDate(r)); return t >= a.getTime() && t <= b.getTime() + 864e5; }).reduce((n, r) => n + r.earnings, 0));
+  const max = Math.max.apply(null, sums.concat([1]));
+  document.getElementById("bars").innerHTML = sums.length && sums.some(s => s > 0)
+    ? sums.map((s, i) => "<div class='bar'><b>" + money(s) + "</b><i style='height:" + Math.max(4, Math.round(s / max * 100)) + "%'></i><span>" + weeks[i][2] + "</span></div>").join("")
+    : "<p class='fine'>No earnings in the last 4 weeks.</p>";
+}
+document.getElementById("exportBtn").onclick = e => {
+  e.preventDefault();
+  if (!usage.length) { alert("No usage to export yet."); return; }
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const csv = ["station,date,window,feed,hours,earnings_usd"].concat(usage.map(r =>
+    [q(r.station), q(r.date), q(r.window), q(r.feed), r.hours, r.earnings.toFixed(2)].join(","))).join("\n");
+  const stamp = new Date().toISOString().slice(0, 10);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "relay-usage-" + stamp + ".csv";
+  a.click();
+};
+document.getElementById("addBtn").onclick = async () => {
+  const err = document.getElementById("feedErr");
+  err.textContent = "";
+  const r = await fetch("/api/feeds", { method: "POST", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ name: document.getElementById("fName").value, location: document.getElementById("fLoc").value,
+      market: document.getElementById("fMarket").value, coords: document.getElementById("fCoords").value,
+      uplink: document.getElementById("fUplink").value, rate: document.getElementById("fRate").value }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't register that camera."; return; }
+  ["fName","fLoc","fMarket","fCoords","fUplink","fRate"].forEach(id => document.getElementById(id).value = "");
+  load();
+};
+document.getElementById("saveBtn").onclick = async () => {
+  const err = document.getElementById("setErr");
+  err.textContent = "";
+  const r = await fetch("/api/settings", { method: "PUT", headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ bank: document.getElementById("bank").value, notif: document.getElementById("notif").value }) });
+  const saved = await r.json().catch(() => ({}));
+  if (!r.ok) { err.textContent = saved.error || "Couldn't save settings."; return; }
+  settings = saved;
+  renderStats();
+  err.textContent = "";
+  alert("Settings saved to your account.");
+};
+load();
+</script>
+</body>
+</html>
